@@ -47,6 +47,9 @@ maxLeaf mix = max ((i . head) $ sortLeaves) 2
     leaves = map fst $ select isLeaf mix
     sortLeaves = sortWith (Down . a) leaves
 
+maxL = Observable { name = "maxL",
+                    gen = fromIntegral . maxLeaf }
+
 getAngle :: Int -> Int -> Int -> Double
 getAngle i iMax nl
     | i <= iMax = minAngle
@@ -79,7 +82,9 @@ dassim phR ra = phR * ra * gc
   where
     gc = 86400 * 10**(-6)*12 * (1/24.0)
 
-sla = (*) <$> constant slaCot <*> (exp <$> ((*) <$> constant slaExp <*> (thr <-*> constant 100)))
+sla =
+    (*) <$> constant slaCot <*>
+    (exp <$> ((*) <$> constant slaExp <*> (thr <-*> constant 100)))
   where
     slaCot = 0.144
     slaExp = -0.002
@@ -106,6 +111,18 @@ texp i
 m2c m = m * 0.3398
 
 c2m c = c / 0.3398
+
+maint :: Double -> Double -> Int -> Obs -> Obs -> Double -> Double
+maint m a i iMax nl tempt = rlRes * leafArea * (1/24.0)
+  where
+    p = 0.085
+    p' = 0.016
+    c = m2c m
+    toRad d = d / 180 * pi
+    ang = toRad $ getAngle i (floor iMax) (floor nl)
+    leafArea = a * (cos ang)
+    rl20 = (p*c + p')*24
+    rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
 -- growth in grams of mass for a leaf with:
 -- m   : mass
@@ -166,8 +183,13 @@ starchConv = [rule| Cell{c=c, s=s'} -->
 leafCr =
     [rule| Cell{s=s'} --> Cell{s=s'},Leaf{i=(floor nL+1), ta=thr, m=cotArea/slaCot, a=cotArea}
                                           @(rateApp lastThr pCron thr) |]
+
+maintRes =
+  [rule| Cell{c=c, s=s'}, Leaf{a=a,i=i, m=m} -->
+         Cell{c=c-(maint m a i maxL nL temp)}, Leaf{m=m}
+         @1.0 [c-(maint m a i maxL nL temp) > 0] |]
         
-md = Model { rules    = [growth, assim, leafCr, starchConv],
+md = Model { rules    = [growth, assim, leafCr, starchConv, maintRes],
             initState = mkSt }
 
 carbon = Observable { name = "carbon",
