@@ -1,0 +1,25 @@
+name:                fmChromar
+version:             0.1.0.0
+author:              Argyris Zardilis
+maintainer:          azardilis@gmail.com
+copyright:           2017 Argyris Zardilis
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+executable fm
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  other-modules:       Env, Photo, Params
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
+  build-depends:     base,
+                     random >=1.1 && <1.2,
+                     text >= 1.2,
+                     Chart,
+                     Chart-diagrams,
+                     containers >=0.5,
+                     coloured-petri-nets,
+                     normaldistribution >= 1.1,
+                     multiset >= 0.3
+  default-language:    Haskell2010

@@ -1,0 +1,8 @@
+resolver: lts-6.23
+
+packages:
+- '.'
+- location: '../SCPN/coloured-petri-nets/'
+  extra-dep: true
+
+extra-deps: [normaldistribution-1.1.0.3]

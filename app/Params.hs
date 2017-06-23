@@ -1,0 +1,10 @@
+module Params where
+
+cotArea = 1.0e-6 :: Double
+slaCot = 0.144 :: Double
+ts = 560.0 :: Double
+minAngle = 10.0 :: Double
+dAngle = 60.0 :: Double
+initC = 0.1 :: Double
+initS = 2.0 :: Double
+kStarch = 0.84 :: Double
