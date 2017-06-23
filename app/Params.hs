@@ -9,3 +9,4 @@ initC = 0.1 :: Double
 initS = 2.0 :: Double
 kStarch = 0.84 :: Double
 actE = 66400.0 :: Double
+rc = 0.195 :: Double
