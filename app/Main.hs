@@ -170,7 +170,7 @@ $(return [])
 
 growth = [rule| Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
                 Leaf{m=m+(c2m $ g leafMass i ta thr), a=max a ((sla' thr) * (m+g leafMass i ta thr))},
-                Cell{c=c-(g leafMass i ta thr), s=s'} @ldem i ta thr [c-(g leafMass i ta thr) > 0.05*rArea] |]
+                Cell{c=c-1.24*(g leafMass i ta thr), s=s'} @ldem i ta thr [c-1.24*(g leafMass i ta thr) > 0.05*rArea] |]
 
 assim = [rule| Cell{c=c, s=s'} -->
                Cell{c=c + 0.875*dassim (phRate temp) rArea,
