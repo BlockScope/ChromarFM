@@ -11,6 +11,11 @@ import Env
 import Params
 import Photo
 
+
+tend = 757.0
+
+thrmFinal = at thr tend 
+
 isLeaf :: Agent -> Bool
 isLeaf (Leaf{}) = True
 isLeaf _ = False
@@ -102,6 +107,16 @@ ldem i thra thr
     dem = ((thr - thra + 0.5) / texp i)**(a-1) *
           (1 - ((thr - thra) / texp i))**(b-1)
     maxDem = 0.0161
+
+rdem thrt = dem / maxDem
+  where
+    tr = rootLc * thrmFinal
+    a = 13.03
+    b = 9.58
+    dem = ((thrt + 0.5) / tr)**(a-1) *
+          (1 - (thrt + 0.5) / tr)**(b-1)
+    maxPoint = tr/(1+(b-1)/(a-1))-0.5
+    maxDem = ((maxPoint+0.5)/tr)**(a-1)*(1-(maxPoint+0.5)/tr)**(b-1)
 
 texp :: Int -> Double
 texp i
@@ -209,4 +224,4 @@ m3 = Observable { name = "mass3",
 
 
          
-main = runTW md 800.0 "out/out.txt" [leafMass, rArea, carbon, nL, m1, m2]
+main = runTW md tend "out/out.txt" [leafMass, rArea, carbon, nL, m1, m2]
