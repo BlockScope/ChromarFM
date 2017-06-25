@@ -12,7 +12,7 @@ import Params
 import Photo
 
 
-tend = 757.0
+tend = 700
 
 thrmFinal = at thr tend 
 
@@ -54,6 +54,13 @@ maxLeaf mix = max ((i . head) $ sortLeaves) 2
 
 maxL = Observable { name = "maxL",
                     gen = fromIntegral . maxLeaf }
+
+isRoot :: Agent -> Bool
+isRoot Root{} = True
+isRoot _ = False
+
+rootMass = Observable { name = "rootMass",
+                        gen = sumM m . select isRoot }
 
 getAngle :: Int -> Int -> Int -> Double
 getAngle i iMax nl
@@ -127,6 +134,10 @@ m2c m = m * 0.3398
 
 c2m c = c / 0.3398
 
+rm2c m = m * rootFactor
+
+rc2m c = c / rootFactor
+
 maint :: Double -> Double -> Int -> Obs -> Obs -> Double -> Double
 maint m a i iMax nl tempt = rlRes * leafArea * (1/24.0)
   where
@@ -144,7 +155,7 @@ maint m a i iMax nl tempt = rlRes * leafArea * (1/24.0)
 -- i   : rank
 -- ta  : thermal time at time of birth
 -- thr : current thermal time
-g m i ta thr = gmax * (1/24.0)
+g m = gmax * (1/24.0)
   where
     lc = m2c m
     gmax = 0.408 * lc
@@ -152,13 +163,15 @@ g m i ta thr = gmax * (1/24.0)
 mkSt :: Multiset Agent
 mkSt =
     ms
-        (leaves ++[ Cell{ c = initC * ra, s=initS * initC * ra}])
+        (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root])
   where
     cotMass = cotArea / slaCot
+    fR = rdem 100
     leaves =
         [ Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea}
         , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
         ]
+    root = Root { m = pr * fR * (seedInput / (pr*fR + 2)) }
     ra = rosArea (ms leaves)
 
 leafMass = Observable { name = "mass",
@@ -170,6 +183,7 @@ data Agent
            , m :: Double
            , a :: Double }
     | Cell { c :: Double, s :: Double }
+    | Root { m :: Double }  
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
@@ -184,8 +198,8 @@ $(return [])
 ----- rules -------
 
 growth = [rule| Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
-                Leaf{m=m+(c2m $ g leafMass i ta thr), a=max a ((sla' thr) * (m+g leafMass i ta thr))},
-                Cell{c=c-1.24*(g leafMass i ta thr), s=s'} @ldem i ta thr [c-1.24*(g leafMass i ta thr) > 0.05*rArea] |]
+                Leaf{m=m+(c2m $ g leafMass), a=max a ((sla' thr) * (m+g leafMass))},
+                Cell{c=c-1.24*(g leafMass), s=s'} @ldem i ta thr [c-1.24*(g leafMass) > 0.05*rArea] |]
 
 assim = [rule| Cell{c=c, s=s'} -->
                Cell{c=c + 0.875*dassim (phRate temp) rArea,
@@ -203,8 +217,13 @@ maintRes =
   [rule| Cell{c=c, s=s'}, Leaf{a=a,i=i, m=m} -->
          Cell{c=c-(maint m a i maxL nL temp)}, Leaf{m=m}
          @1.0 [c-(maint m a i maxL nL temp) > 0] |]
-        
-md = Model { rules    = [growth, assim, leafCr, starchConv, maintRes],
+
+rootGrowth =
+  [rule| Root{m=m}, Cell{c=c, s=s'} -->
+         Root{m=m+ rc2m (pr * g leafMass)}, Cell{c=c-(pr* g leafMass), s=s'} @rdem thr [c-(pr*g leafMass) > 0.05*rArea] |]
+
+
+md = Model { rules    = [growth, assim, leafCr, starchConv, maintRes, rootGrowth],
             initState = mkSt }
 
 carbon = Observable { name = "carbon",
@@ -224,4 +243,4 @@ m3 = Observable { name = "mass3",
 
 
          
-main = runTW md tend "out/out.txt" [leafMass, rArea, carbon, nL, m1, m2]
+main = runTW md tend "out/out.txt" [leafMass, rArea, carbon, nL, rootMass]
