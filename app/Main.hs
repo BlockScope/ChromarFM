@@ -33,6 +33,13 @@ lastThr =
     , gen = lastTa
     }
 
+largestLeaf :: Multiset Agent -> Double
+largestLeaf mix = head (sortWith Down
+                   [a | (Leaf{i=_,m=_, a=a, ta=_}, _) <- mix])
+
+largLeaf = Observable { name = "largestLeaf",
+                        gen = largestLeaf }
+
 rateApp lta pc thrt =
     if thrt - lta > pc
         then 1.0 -- / 24.0
@@ -266,9 +273,19 @@ rootGrowth =
         cEqui = 0.05 * rArea
   |]
 
+rootMaint =
+  [rule|
+    Root{m=m}, Cell{c=c, s=s'} -->
+    Root{m=m}, Cell{c=c-rm, s=s'}
+    @1.0 [c-rm > 0.0]
+      where
+        rm = maint m rArea (floor maxL) maxL nL temp
+  |]      
+
 md =
     Model
-    { rules = [growth, assim, leafCr, starchConv, maintRes, rootGrowth]
+    { rules =
+        [growth, assim, leafCr, starchConv, maintRes, rootGrowth, rootMaint]
     , initState = mkSt
     }
 
