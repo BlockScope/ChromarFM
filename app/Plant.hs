@@ -1,7 +1,7 @@
 {-# LANGUAGE  QuasiQuotes #-}
 {-# LANGUAGE  TemplateHaskell #-}
 
-module Main where
+module Plant where
 
 import GHC.Exts
 import Chromar
@@ -9,7 +9,7 @@ import Env
 import Params
 import Photo
 
-tend = 700
+tend = 620
 
 thrmFinal = at thr tend
 
@@ -310,7 +310,7 @@ md =
         ]
     , initState = mkSt
     }
-
+    
 carbon =
     Observable
     { name = "carbon"
@@ -335,4 +335,4 @@ m2 =
     , gen = sumM m . selectAttr i 2 . select isLeaf
     }
 
-main = runTW md tend "out/out.txt" [leafMass, rArea, carbon, nL, rootMass]
+
