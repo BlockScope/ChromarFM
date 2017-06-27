@@ -292,7 +292,7 @@ rootTransl =
      @1.0 [c <= cEqui]
        where
          cEqui = 0.05 * rArea,
-         tl = (rm2c rm / (m2c leafMass + rm2c rm))
+         tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
   |]       
 
 md =
@@ -305,6 +305,8 @@ md =
         , maintRes
         , rootGrowth
         , rootMaint
+        , leafTransl
+        , rootTransl  
         ]
     , initState = mkSt
     }
