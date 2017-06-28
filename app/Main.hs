@@ -10,7 +10,6 @@ import Control.Monad
 import Data.List
 import qualified System.Random as R
 
-
 fplot =
     [ "out/leafMass.png"
     , "out/rArea.png"
@@ -21,8 +20,10 @@ fplot =
 
 fout = "out/out.txt"
 
---main = runTW md tend fout [leafMass, rArea, carbon, nL, rootMass]
-main = goPlot
+
+--main = runT md tend [leafMass, rArea, carbon, nL, rootMass, plantD]
+main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD]
+--main = goPlot
 
 goPlot = do
     rgen <- R.getStdGen

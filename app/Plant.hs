@@ -9,13 +9,24 @@ import Env
 import Params
 import Photo
 
-tend = 620
+log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
+
+logE t = 1.0 / (1.0 + exp (-100.0 * (t - 110.0)))
+
+tend = 1000
 
 thrmFinal = at thr tend
 
 isLeaf :: Agent -> Bool
 isLeaf (Leaf {}) = True
 isLeaf _ = False
+
+isPlant :: Agent -> Bool
+isPlant (Plant{}) = True
+isPlant _ = False
+
+plantD = Observable { name = "plantD",
+                      gen = sumM dg . select isPlant }
 
 pCron :: Fluent Double
 pCron = when (thr <>*> (constant 465)) adPCron `orElse` juvPCron
@@ -180,7 +191,7 @@ g m = gmax * (1/24.0)
 mkSt :: Multiset Agent
 mkSt =
     ms
-        (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root])
+        (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root, plant ])
   where
     cotMass = cotArea / slaCot
     fR = rdem 100
@@ -189,18 +200,30 @@ mkSt =
         , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
         ]
     root = Root { m = pr * fR * (seedInput / (pr*fR + 2)) }
+    plant = Plant {attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0}
     ra = rosArea (ms leaves)
+
+mkSt' :: Multiset Agent
+mkSt' = ms [ Plant {attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
 
+data Attrs = Attrs
+  { ind :: !Int
+  , psi :: !Double
+  } deriving (Ord, Eq, Show)
+             
 data Agent
-    = Leaf { i :: Int
-           , ta :: Double
-           , m :: Double
-           , a :: Double }
-    | Cell { c :: Double, s :: Double }
-    | Root { m :: Double }  
+    = Leaf { i :: !Int
+           , ta :: !Double
+           , m :: !Double
+           , a :: !Double }
+    | Cell { c :: !Double, s :: !Double }
+    | Root { m :: !Double }
+    | Plant { attr :: !Attrs
+            , dg :: !Double
+            , wct :: !Double}  
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
@@ -218,7 +241,7 @@ growth =
     [rule|
       Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       Leaf{m=m+(c2m $ gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @ld [c-grRes > cEqui]
+      @ld [c-grRes > cEqui && thr > 110]
         where
           gr = g leafMass,
           a' = (sla' thr) * (m + gr),
@@ -231,7 +254,7 @@ assim =
   [rule|
     Cell{c=c, s=s'} -->
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
-    @1.0 [day]
+    @1.0 [day && thr > 110]
       where
         da = dassim (phRate temp) rArea
   |]
@@ -239,20 +262,20 @@ assim =
 starchConv =
   [rule|
     Cell{c=c, s=s'} -->
-    Cell{c=c+(s2c s'), s=s'-(s2c s')} @1.0 [not day]
+    Cell{c=c+(s2c s'), s=s'-(s2c s')} @1.0 [not day && thr > 110]
   |]
 
 leafCr =
     [rule|
       Cell{s=s'} --> Cell{s=s'}, Leaf{i=(floor nL+1), ta=thr, m=cotArea/slaCot, a=cotArea}
-      @(rateApp lastThr pCron thr)
+      @(rateApp lastThr pCron thr) [thr > 110]
     |]
 
 maintRes =
   [rule|
     Cell{c=c, s=s'}, Leaf{a=a,i=i, m=m} -->
     Cell{c=c-lmaint}, Leaf{m=m}
-    @1.0 [c-lmaint > 0]
+    @1.0 [c-lmaint > 0 && thr > 110]
       where
         lmaint = maint m a i maxL nL temp |]
 
@@ -260,7 +283,7 @@ rootGrowth =
   [rule|
     Root{m=m}, Cell{c=c, s=s'} -->
     Root{m=m+ rc2m rg}, Cell{c=c-rg, s=s'}
-    @rdem thr [c-rg > cEqui]
+    @rdem thr [c-rg > cEqui && thr > 110]
       where
         rg = pr*g leafMass,
         cEqui = 0.05 * rArea
@@ -270,7 +293,7 @@ rootMaint =
   [rule|
     Root{m=m}, Cell{c=c, s=s'} -->
     Root{m=m}, Cell{c=c-rm, s=s'}
-    @1.0 [c-rm > 0.0]
+    @1.0 [c-rm > 0.0 && thr > 110]
       where
         rm = maint m rArea (floor maxL) maxL nL temp
   |]
@@ -279,7 +302,7 @@ leafTransl =
   [rule|
     Leaf{m=lm}, Root{m=rm}, Cell{c=c, s=s'} -->
     Leaf{m=lm-c2m tl}, Root{m=rm}, Cell{c=c+tl}
-    @1.0 [c <= cEqui]
+    @1.0 [c <= cEqui && thr > 110]
       where
         cEqui = 0.05 * rArea,
         tl = (m2c lm / (m2c leafMass + rm2c rm)) * (cEqui - c)
@@ -289,11 +312,31 @@ rootTransl =
   [rule|
      Root{m=rm}, Cell{c=c, s=s'} -->
      Root{m=rm-rc2m tl}, Cell{c=c+tl, s=s'}
-     @1.0 [c <= cEqui]
+     @1.0 [c <= cEqui && thr > 110]
        where
          cEqui = 0.05 * rArea,
          tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
-  |]       
+  |]
+
+devp =
+  [rule| Plant{dg=d, wct=w} -->
+         Plant{dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
+
+-- eme =
+--   [rule| Plant{dg=d, wct=w} -->
+--          Plant{dg=d, wct=w},
+--           Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+--           Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+--           Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
+--           Cell{ c = initC * ra, s=initS * initC * ra} @logE d [True]
+--             where
+--               cotMass = cotArea / slaCot,
+--               fR = rdem 100,
+--               ra = 2*cotArea*cos (10/180*pi)
+--   |]
+
+leafD = undefined
+rootD = undefined
 
 md =
     Model
@@ -306,7 +349,8 @@ md =
         , rootGrowth
         , rootMaint
         , leafTransl
-        , rootTransl  
+        , rootTransl
+        , devp
         ]
     , initState = mkSt
     }
@@ -336,3 +380,5 @@ m2 =
     }
 
 
+hasFlowered :: Multiset Agent -> Bool
+hasFlowered mix = (sumM dg . select isPlant) mix < 2650
