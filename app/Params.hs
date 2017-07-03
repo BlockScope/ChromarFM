@@ -14,4 +14,3 @@ rootLc = 1.3 :: Double
 seedInput = 1.6e-5 :: Double
 pr = 2.64:: Double
 rootFactor = 0.35 :: Double
-ts = 560.0 :: Double
