@@ -22,13 +22,13 @@ fout = "out/out.txt"
 
 
 --main = runT md tend [leafMass, rArea, carbon, nL, rootMass, plantD]
-main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD]
---main = goPlot
+--main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD]
+main = goPlot
 
 goPlot = do
     rgen <- R.getStdGen
     let obssF = map gen [leafMass, rArea, carbon, nL, rootMass]
-    let trajs = runTT rgen 10 tend md
+    let trajs = runTT rgen 10 hasFlowered md
     let tobsss = map ((flip applyObs) obssF) trajs
     mapM_ (plotObs fplot tobsss) [0, 1, 2, 3, 4]
 
@@ -48,14 +48,14 @@ avgTraj i tobsss =
     
 runTT
     :: (Eq a)
-    => R.StdGen -> Int -> Time -> Model a -> [[State a]]
-runTT gen n tend md
+    => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]
+runTT gen n fb md
     | n == 0 = []
-    | otherwise = traj : (runTT rg2 (n - 1) tend md)
+    | otherwise = traj : (runTT rg2 (n - 1) fb md)
   where
     (rg1, rg2) = R.split gen
     traj =
-        takeWhile (\s -> getT s < tend) (simulate rg1 (rules md) (initState md))
+        takeWhile (\s -> fb (getM s)) (simulate rg1 (rules md) (initState md))
 
 --- plot ith observable
 plotObs fn tobsss i = renderableToFile def (fn !! i) chart
