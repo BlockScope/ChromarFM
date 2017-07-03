@@ -261,7 +261,7 @@ growth =
 assim =
   [rule|
     Cell{c=c, s=s'} -->
-    Cell{c=c + 2*0.875*da, s=s'+ 0.125*da}
+    Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
         da = dassim (phRate temp) rArea
