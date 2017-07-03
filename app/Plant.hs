@@ -13,7 +13,7 @@ log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
 logE t = 1.0 / (1.0 + exp (-100.0 * (t - 110.0)))
 
-tend = 1000
+tend = 900
 
 thrmFinal = at thr tend
 
