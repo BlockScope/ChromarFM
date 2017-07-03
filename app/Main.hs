@@ -21,8 +21,8 @@ fplot =
 fout = "out/out.txt"
 
 
---main = runT md tend [leafMass, rArea, carbon, nL, rootMass, plantD]
---main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD]
+--main = runT md 900.0 [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
+--main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
 main = goPlot
 
 goPlot = do
