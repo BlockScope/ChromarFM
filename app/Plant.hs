@@ -4,6 +4,8 @@
 module Plant where
 
 import GHC.Exts
+import Control.DeepSeq
+import GHC.Generics
 import Chromar
 import Env
 import Params
@@ -249,9 +251,9 @@ growth =
     [rule|
       Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       Leaf{m=m+(c2m $ gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @ld [c-grRes > cEqui]
+      @10*ld [c-grRes > cEqui]
         where
-          gr = g leafMass,
+          gr = (g leafMass) / 10.0,
           a' = (sla' thr) * (m + gr),
           ld = ldem i ta thr,
           grRes = 1.24 * gr,
@@ -291,7 +293,7 @@ rootGrowth =
   [rule|
     Root{m=m}, Cell{c=c, s=s'} -->
     Root{m=m+ rc2m rg}, Cell{c=c-rg, s=s'}
-    @rdem thr [c-rg > cEqui && thr > 110]
+    @rdem thr [c-rg > cEqui]
       where
         rg = pr*g leafMass,
         cEqui = 0.05 * rArea
@@ -301,7 +303,7 @@ rootMaint =
   [rule|
     Root{m=m}, Cell{c=c, s=s'} -->
     Root{m=m}, Cell{c=c-rm, s=s'}
-    @1.0 [c-rm > 0.0 && thr > 110]
+    @1.0 [c-rm > 0.0]
       where
         rm = maint m rArea (floor maxL) maxL nL temp
   |]
@@ -310,7 +312,7 @@ leafTransl =
   [rule|
     Leaf{m=lm}, Root{m=rm}, Cell{c=c, s=s'} -->
     Leaf{m=lm-c2m tl}, Root{m=rm}, Cell{c=c+tl}
-    @1.0 [c <= cEqui && thr > 110]
+    @1.0 [c <= cEqui]
       where
         cEqui = 0.05 * rArea,
         tl = (m2c lm / (m2c leafMass + rm2c rm)) * (cEqui - c)
@@ -320,7 +322,7 @@ rootTransl =
   [rule|
      Root{m=rm}, Cell{c=c, s=s'} -->
      Root{m=rm-rc2m tl}, Cell{c=c+tl, s=s'}
-     @1.0 [c <= cEqui && thr > 110]
+     @1.0 [c <= cEqui]
        where
          cEqui = 0.05 * rArea,
          tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
