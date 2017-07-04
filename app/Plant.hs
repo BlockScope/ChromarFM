@@ -4,7 +4,6 @@
 module Plant where
 
 import GHC.Exts
-import Control.DeepSeq
 import GHC.Generics
 import Chromar
 import Env
