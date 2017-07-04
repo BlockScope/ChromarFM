@@ -136,3 +136,9 @@ htu t a psi
     psb = psB ar psi
     mpsB = psB ar psi + kt * (tempt-to)
 
+
+---- infloresence dev -----
+disp = when (ntemp <>*> constant 0.0) ntemp `orElse` (constant 0.0)
+  where
+    ntemp = temp <-*> constant tbd
+

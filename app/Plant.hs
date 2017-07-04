@@ -12,7 +12,13 @@ import Photo
 
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
-tend = 2000
+logf' :: Double -> Double
+logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
+
+logs' :: Double -> Double
+logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
+
+tend = 800
 
 thrmFinal = at thr tend
 
@@ -38,11 +44,22 @@ plantD = Observable { name = "plantD",
 eplantD = Observable { name = "plantD",
                       gen = sumM dg . select isEPlant }
 
+plantTa = Observable { name = "plantTa",
+                       gen = sumM ta . select isEPlant }
+
 pCron :: Fluent Double
 pCron = when (thr <>*> (constant 465)) adPCron `orElse` juvPCron
   where
     juvPCron = constant 30.3
     adPCron = constant 11.9
+
+pCron' :: Double -> Double
+pCron' dthr
+    | dthr > 465 = adPCron
+    | otherwise = juvPCron
+  where
+    juvPCron = 30.3
+    adPCron = 11.9
 
 lastTa :: Multiset Agent -> Double
 lastTa mix = head (sortWith Down
@@ -237,9 +254,12 @@ data Agent
     | Plant { attr :: !Attrs
             , dg :: !Double
             , wct :: !Double}
-    | EPlant { attr :: !Attrs
+    | EPlant { ta :: !Double
+             , attr :: !Attrs
              , dg :: !Double
              , wct :: !Double}
+    | FPlant { attr :: !Attrs
+             , dg :: !Double}  
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
@@ -277,7 +297,7 @@ growth =
       @10*ld [c-grRes > cEqui]
         where
           gr = (g leafMass) / 10.0,
-          a' = (sla' thr) * (m + gr),
+          a' = (sla' (thr-plantTa)) * (m + gr),
           ld = ldem i ta thr,
           grRes = 1.24 * gr,
           cEqui = 0.05 * rArea
@@ -300,8 +320,8 @@ starchConv =
 
 leafCr =
     [rule|
-      Cell{s=s'} --> Cell{s=s'}, Leaf{i=(floor nL+1), ta=thr, m=cotArea/slaCot, a=cotArea}
-      @(rateApp lastThr pCron thr)
+      EPlant{ta=ta} --> EPlant{ta=ta}, Leaf{i=(floor nL+1), ta=thr, m=cotArea/slaCot, a=cotArea}
+      @(rateApp lastThr (pCron' (thr-ta)) thr)
     |]
 
 maintRes =
@@ -361,7 +381,7 @@ devep =
 
 eme =
   [rule| Plant{attr=ar, dg=d, wct=w} -->
-         EPlant{attr=ar, dg=d, wct=w},
+         EPlant{ta=thr, attr=ar, dg=d, wct=w},
           Leaf{ i = 1, ta = thr, m = cotArea/slaCot, a = cotArea},
           Leaf{ i = 2, ta = thr, m = cotArea/slaCot, a = cotArea},
           Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
@@ -373,7 +393,24 @@ eme =
   |]
   
 leafD =
-  [rule| Plant{dg=d}, Leaf{ta=ta} --> Plant{dg=d} @1.0 [ta + ts > thr ] |]
+  [rule| FPlant{dg=d}, Leaf{ta=ta} --> FPlant{dg=d} @1.0 |]
+
+transp =
+    [rule|
+        EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
+        FPlant{attr=atr, dg=0.0}
+        @logf' d
+    |]
+
+devfp =
+    [rule| FPlant{dg=d} --> FPlant{dg=d+disp} @1.0 |]
+
+transfp =
+    [rule|
+         FPlant{attr=atr, dg=d} -->
+         Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
+         @logs' d
+   |]
 
 rootD = undefined
 
@@ -394,7 +431,10 @@ md =
         , devp
         , devep  
         , eme
-        , leafD  
+        , leafD
+        , transp
+        , devfp
+        , transfp 
         ]
     , initState = mkSt''
     }
