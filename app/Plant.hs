@@ -12,7 +12,7 @@ import Photo
 
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
-tend = 900
+tend = 2000
 
 thrmFinal = at thr tend
 
@@ -27,6 +27,10 @@ isPlant _ = False
 isEPlant :: Agent -> Bool
 isEPlant (EPlant{}) = True
 isEPlant _ = False
+
+isSeed :: Agent -> Bool
+isSeed (Seed{}) = True
+isSeed _ = False
 
 plantD = Observable { name = "plantD",
                       gen = sumM dg . select isPlant }
@@ -208,6 +212,9 @@ mkSt =
 mkSt' :: Multiset Agent
 mkSt' = ms [ Plant {attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
 
+mkSt'' :: Multiset Agent
+mkSt'' = ms [Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0} ]
+
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
 
@@ -217,7 +224,11 @@ data Attrs = Attrs
   } deriving (Ord, Eq, Show)
              
 data Agent
-    = Leaf { i :: !Int
+    = Seed { mass :: !Double
+           , attr :: !Attrs
+           , dg :: !Double
+           , art :: !Double}
+    | Leaf { i :: !Int
            , ta :: !Double
            , m :: !Double
            , a :: !Double }
@@ -245,6 +256,19 @@ $(return [])
 
 
 ----- rules -------
+
+dev =
+    [rule| Seed{attr=atr, dg=d, art=a} -->
+           Seed{attr=atr, dg = d + (htu time a (psi atr)), art=a + (arUpd moist temp)}
+           @1.0
+   |]
+  
+trans =
+    [rule|
+        Seed{mass=m, attr=atr, dg=d, art=a} -->
+        Plant{attr=atr, dg=0.0, wct=0.0}
+        @log' d
+  |]
 
 growth =
     [rule|
@@ -356,7 +380,9 @@ rootD = undefined
 md =
     Model
     { rules =
-        [ growth
+        [ dev
+        , trans
+        , growth
         , assim
         , leafCr
         , starchConv
@@ -370,7 +396,7 @@ md =
         , eme
         , leafD  
         ]
-    , initState = mkSt'
+    , initState = mkSt''
     }
     
 carbon =
@@ -396,6 +422,9 @@ m2 =
     { name = "mass2"
     , gen = sumM m . selectAttr i 2 . select isLeaf
     }
+
+seedD = Observable { name = "seedD",
+                     gen = sumM dg . select isSeed }
 
 
 hasFlowered :: Multiset Agent -> Bool

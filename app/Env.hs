@@ -2,11 +2,22 @@ module Env where
 
 import Chromar.Fluent
 
+psmax = -5
+psmin = -1
+psu = -50
+psl = -350
+psSc = 1.0
+tbar = 3.0
+tbg = 3.0
+tbd = 3.0
+kt = 0.12
+to = 22
+
 fi = 0.5741
 fu = 0
 
 
-dayTemp = 22.0 :: Double
+dayTemp = 23.0 :: Double
 nightTemp = 22.0 :: Double
 baseTemp = 3.0 :: Double
 
@@ -36,9 +47,11 @@ thr = mkFluent calcCTemp
 
 co2 = 42.0
 
+moist = constant (1.1)
 
 
------
+
+--------- plant dev -----
 idev = (*)
        <$> constant 0.374
        <*> (photo' <-*> constant 10.0)
@@ -84,4 +97,42 @@ fp wc =
     wcRat = wc / wcsat
     fp1 = 1 - fi + (fi - fu) * wcRat
     fp2 = 1 - fu
+
+
+--------seed dev --------------
+
+arUpd moist temp
+  | moist <= psmax && moist >= psu = temp - tbar
+  | moist < psu && moist > psl = ((psl - moist) / (psl - psu)) * (temp - tbar)
+  | moist <= psmax || moist <= psl = 0.0
+  | otherwise = 0.0
+
+psB ar psi =
+  if psb' > psmin
+     then psb'
+     else psmin
+  where
+    arlab = arUpd (-200) 20
+    dsat = 40
+    psb' = psi - psSc * (ar / (arlab * dsat * 24) )
+
+htuSub ar psi moist temp = (moist - psB ar psi) * (temp - tbg)
+
+htuOpt ar psi moist temp = (moist - mpsB) * (to - tbg)
+  where
+    mpsB = psB ar psi + kt * (temp - to)
+
+---t : time
+--- a : afterripening
+--- psi : initial dorm
+htu t a psi
+  | moistt > psb && tempt > tbg && tempt < to = htuSub ar psi moistt tempt
+  | mpsB < moistt && tempt > to = htuOpt a psi moistt tempt
+  | otherwise = 0.0                                
+  where
+    tempt = at temp t
+    moistt = at moist t
+    ar = a + arUpd moistt tempt
+    psb = psB ar psi
+    mpsB = psB ar psi + kt * (tempt-to)
 
