@@ -1,6 +1,10 @@
 module Env where
 
 import Chromar.Fluent
+import System.IO.Unsafe
+import qualified Data.Text as T
+import qualified Data.Text.IO as TI
+import qualified Data.Map.Strict as Map
 
 psmax = -5
 psmin = -1
@@ -17,38 +21,20 @@ fi = 0.5741
 fu = 0
 
 
-dayTemp = 23.0 :: Double
-nightTemp = 22.0 :: Double
-baseTemp = 3.0 :: Double
+dataFile = "data/rad/weatherValencia2yrsRad.csv"
 
-dayTemp' = dayTemp - baseTemp
-nightTemp' = nightTemp - baseTemp
+temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
+photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
+day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
+moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
+par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
 
-photo' = constant 12
-d = 12.0
-
-light = between 6 18 (constant True) (constant False)
-day = repeatEvery 24 light
-
-par = 120.0
-
-temp = when day (constant dayTemp') `orElse` (constant nightTemp')
-
-calcCTemp :: Time -> Double
-calcCTemp t = ((dayHours * dayTemp') + (nightHours * nightTemp') + todayThr) / 24.0
-  where
-    tr = round t :: Int
-    (days, hours) = quotRem tr 24
-    dayHours = fromIntegral $ days * 12
-    nightHours = fromIntegral $ days * 12
-    todayThr = sum [at temp (fromIntegral h) | h <- [1 .. hours]]
-
-thr = mkFluent calcCTemp
+tempBase = constant 3.0
+temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
 
 co2 = 42.0
 
-moist = constant (1.1)
-
+day  = day' <>*> constant 0.0
 
 
 --------- plant dev -----
@@ -66,7 +52,8 @@ pperiod =
   when (photo' <<*> constant 10.0) (constant 0.626) `orElse`
   (when (photo' <<*> constant 14.0) idev'' `orElse` constant 1.0)
 
-thermal = when day (constant dayTemp') `orElse` constant 0.0
+thermal = when day temp `orElse` constant 0.0
+
 ptu = (*) <$> thermal <*> pperiod
 
 tmin = -3.5
@@ -142,3 +129,20 @@ disp = when (ntemp <>*> constant 0.0) ntemp `orElse` (constant 0.0)
   where
     ntemp = temp <-*> constant tbd
 
+
+
+--------------
+parseLine :: Int -> T.Text -> (Double, Double)
+parseLine n ln = (read $ T.unpack time, read $ T.unpack temp) where
+  elems = T.splitOn (T.pack ",") ln
+  time = elems !! 0
+  temp = elems !! n
+
+
+readTable :: FilePath -> Int -> IO (Fluent Double)
+readTable fn n = do
+  contents <- TI.readFile fn
+  let vals = map (parseLine n) (T.lines contents)
+  return $ flookupM (Map.fromList vals)
+
+------

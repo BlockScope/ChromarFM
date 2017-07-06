@@ -21,9 +21,9 @@ fplot =
 fout = "out/out.txt"
 
 
---main = runT md 900.0 [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
+main = runT md (365*1*24) [leafMass, rArea, carbon, nL, rootMass, seedD, eplantD]
 --main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
-main = goPlot
+--main = goPlot
 
 goPlot = do
     rgen <- R.getStdGen
@@ -40,7 +40,7 @@ avgT :: Time -> [Fluent Obs] -> Obs
 avgT t fs = avg [at f t | f <- fs]
 
 avgTraj i tobsss =
-    [ (t, avgT t fluents)
+    [ (fromIntegral t, avgT (fromIntegral t) fluents)
     | t <- [0 .. tend] ]
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
