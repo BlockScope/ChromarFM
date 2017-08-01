@@ -12,7 +12,7 @@ import Photo
 
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
-tend = 900
+tend = 750
 
 thrmFinal = at thr tend
 
@@ -399,4 +399,4 @@ m2 =
 
 
 hasFlowered :: Multiset Agent -> Bool
-hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
+hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
