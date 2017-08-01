@@ -17,24 +17,31 @@ tbd = 3.0
 kt = 0.12
 to = 22
 
-fi = 0.5741
+fi = 0.598
+--fi = 0.737
 fu = 0
 
 
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
 
-temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
-photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
-day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
-moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
-par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
+-- temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
+-- photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
+-- day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
+-- moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
+-- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
+-- day  = day' <>*> constant 0.0
+
+temp' = constant 22.0
+photo' = constant 12.0
+light = between 6 18 (constant True) (constant False)
+day = repeatEvery 24 light
+moist = constant 1.1
+par = constant 120.0
 
 tempBase = constant 3.0
 temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
 
 co2 = 42.0
-
-day  = day' <>*> constant 0.0
 
 
 --------- plant dev -----
