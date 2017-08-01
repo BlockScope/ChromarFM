@@ -5,6 +5,8 @@ import Chromar.Fluent
 fi = 0.5741
 fu = 0
 
+sunrise = 6
+sunset = 18
 
 dayTemp = 22.0 :: Double
 nightTemp = 22.0 :: Double
@@ -16,7 +18,7 @@ nightTemp' = nightTemp - baseTemp
 photo' = constant 12
 d = 12.0
 
-light = between 6 18 (constant True) (constant False)
+light = between sunrise sunset (constant True) (constant False)
 day = repeatEvery 24 light
 
 par = 120.0
