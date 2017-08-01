@@ -22,13 +22,22 @@ fout = "out/out.txt"
 
 
 --main = runT md 900.0 [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
---main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
+--main = runUntil md hasFlowered fout [leafMass, plantD, eplantD]
 main = goPlot
+
+runUntil
+    :: (Ord a, Show a)
+    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
+runUntil (Model {rules = rs
+             ,initState = s}) fb fn obss = do
+    rgen <- R.getStdGen
+    let traj = takeWhile (\s -> fb (getM s)) (simulate rgen rs s)
+    writeObs fn obss traj
 
 goPlot = do
     rgen <- R.getStdGen
     let obssF = map gen [leafMass, rArea, carbon, nL, rootMass]
-    let trajs = runTT rgen 10 hasFlowered md
+    let trajs = runTT rgen 50 hasFlowered md
     let tobsss = map ((flip applyObs) obssF) trajs
     mapM_ (plotObs fplot tobsss) [0, 1, 2, 3, 4]
 
