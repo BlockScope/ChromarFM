@@ -5,6 +5,8 @@ module Plant where
 
 import GHC.Exts
 import GHC.Generics
+import Data.Time.Calendar.MonthDay
+import Data.List
 import Chromar
 import Env
 import Params
@@ -37,6 +39,26 @@ isEPlant _ = False
 isSeed :: Agent -> Bool
 isSeed (Seed{}) = True
 isSeed _ = False
+
+isSystem :: Agent -> Bool
+isSystem (System{}) = True
+isSystem _ = False
+
+median :: [Int] -> Int
+median [] = 0
+median xs = (sort xs) !! mid
+  where
+    mid = length xs  `div` 2
+    
+avg l =
+    let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
+    in (realToFrac (t) / realToFrac (n))
+
+getMonth time = m
+  where
+    hourYear = mod (floor time) (365*24) :: Int
+    dayYear = hourYear `quot` 24
+    (m, _) = dayOfYearToMonthAndDay False dayYear
 
 plantD = Observable { name = "plantD",
                       gen = sumM dg . select isPlant }
@@ -230,7 +252,7 @@ mkSt' :: Multiset Agent
 mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
 
 mkSt'' :: Multiset Agent
-mkSt'' = ms [Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0} ]
+mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]}, Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0} ]
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -241,16 +263,21 @@ data Attrs = Attrs
   } deriving (Ord, Eq, Show)
              
 data Agent
-    = Seed { mass :: !Double
+    = System { germTimes :: [Int]
+             , flowerTimes :: [Int]
+             , ssTimes :: [Int]
+             , rosMass :: [Double]}
+    | Seed { mass :: !Double
            , attr :: !Attrs
            , dg :: !Double
            , art :: !Double}
     | Leaf { i :: !Int
            , ta :: !Double
            , m :: !Double
-           , a :: !Double }
-    | Cell { c :: !Double, s :: !Double }
-    | Root { m :: !Double }
+           , a :: !Double}
+    | Cell { c :: !Double
+           , s :: !Double}
+    | Root { m :: !Double}
     | Plant { thrt :: !Double
             , attr :: !Attrs
             , dg :: !Double
@@ -260,7 +287,7 @@ data Agent
              , dg :: !Double
              , wct :: !Double}
     | FPlant { attr :: !Attrs
-             , dg :: !Double}  
+             , dg :: !Double}
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
@@ -286,8 +313,8 @@ dev =
   
 trans =
     [rule|
-        Seed{mass=m, attr=atr, dg=d, art=a} -->
-        Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
+        System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
+        System{germTimes=(getMonth time:gts)}, Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
         @log' d
   |]
 
@@ -396,10 +423,13 @@ eme =
 leafD =
   [rule| FPlant{dg=d}, Leaf{ta=ta} --> FPlant{dg=d} @1.0 |]
 
+leafD' =
+  [rule| EPlant{thrt=tt}, Leaf{ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
+
 transp =
     [rule|
-        EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
-        FPlant{attr=atr, dg=0.0}
+        System{flowerTimes=fts, rosMass=rms}, EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
+        System{flowerTimes=(getMonth time:fts), rosMass=(leafMass:rms)}, FPlant{attr=atr, dg=0.0}
         @logf' d
     |]
 
@@ -408,8 +438,8 @@ devfp =
 
 transfp =
     [rule|
-         FPlant{attr=atr, dg=d} -->
-         Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
+         System{ssTimes=ss}, FPlant{attr=atr, dg=d} -->
+         System{ssTimes=(getMonth time:ss)}, Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
          @logs' d
    |]
 
@@ -432,12 +462,13 @@ md =
         , devp
         , devep  
         , eme
-        , leafD
+        , leafD'
+        , leafD  
         , transp
         , devfp
         , transfp 
         ]
-    , initState = mkSt''
+    , initState = mkSt'
     }
     
 carbon =
@@ -469,6 +500,27 @@ seedD = Observable { name = "seedD",
 
 thrtt = Observable { name = "thrtt",
                      gen = sumM thrt . select isEPlant }
+
+
+avgGermMonth = Observable { name = "avgGermM",
+                            gen = avgGerm }
+  where
+    avgGerm mix = fromIntegral (median (head [gts | (System{germTimes=gts}, _) <- mix]))
+
+avgFlMonth = Observable { name = "avgFlM",
+                            gen = avgFl }
+  where
+    avgFl mix = fromIntegral (median (head [fts | (System{flowerTimes=fts}, _) <- mix]))
+
+avgSMonth = Observable { name = "avgSM",
+                         gen = avgS }
+  where
+    avgS mix = fromIntegral (median (head [ss | (System{ssTimes=ss}, _) <- mix]))
+
+avgRosMass = Observable { name = "avgRosMass",
+                          gen = avgMass }
+  where
+    avgMass mix = avg (head [rms | (System{rosMass=rms}, _) <- mix ])
 
 
 hasFlowered :: Multiset Agent -> Bool
