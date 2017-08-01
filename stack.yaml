@@ -2,7 +2,9 @@ resolver: lts-6.23
 
 packages:
 - '.'
-- location: '../SCPN/coloured-petri-nets/'
-  extra-dep: true
+- location:
+    git: git@github.com:azardilis/coloured-petri-nets.git
+    commit: 22cdd80f1362e1a1b2540414625cde58d5f58dfe
+    extra-dep: true
 
 extra-deps: [normaldistribution-1.1.0.3]
