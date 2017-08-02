@@ -22,10 +22,18 @@ fout = "out/out.txt"
 
 
 --main = runT md (365*1*24) [leafMass, eplantD]
---main = runUntil md hasFlowered fout [leafMass, rArea, carbon, nL, rootMass, plantD, eplantD]
-main = goPlot
+--main = runUntil mdLite hasFlowered fout [leafMass, plantD, eplantD]
+main = getEnd
 --main = mainDistr
 
+runUntil
+    :: (Ord a, Show a)
+    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
+runUntil (Model {rules = rs
+             ,initState = s}) fb fn obss = do
+    rgen <- R.getStdGen
+    let traj = takeWhile (\s -> fb (getM s)) (simulate rgen rs s)
+    writeObs fn obss traj
 
 mainDistr :: IO ()
 mainDistr = do
@@ -44,6 +52,16 @@ mainDistr = do
   print "----------"
   mapM_ print ss
 
+getEnd = do
+  rgen <- R.getStdGen
+  let obssF = map gen [leafMass, eplantD]
+  let trajs = runTT rgen 20 hasFlowered md
+  let tobsss = map ((flip applyObs) obssF) trajs
+  let tobss = map (getLast 0) tobsss
+  print (avg $ map fst tobss)
+  print (avg $ map snd tobss)
+  mapM_ (plotObs fplot tobsss) [0, 1]
+  
 goPlot = do
     rgen <- R.getStdGen
     let obssF = map gen [leafMass, eplantD]
@@ -71,6 +89,11 @@ runTT gen n fb md
     (rg1, rg2) = R.split gen
     traj =
         takeWhile (\s -> fb (getM s)) (simulate rg1 (rules md) (initState md))
+        
+getLast :: Int -> [(Time, [Obs])] -> (Time, Obs)
+getLast i tobss = (t, obss !! i)
+  where
+    (t, obss) = last tobss
 
 --- plot ith observable
 plotObs fn tobsss i = renderableToFile def (fn !! i) chart
