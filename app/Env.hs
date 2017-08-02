@@ -5,6 +5,8 @@ import System.IO.Unsafe
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI
 import qualified Data.Map.Strict as Map
+import Data.Fixed
+import Params
 
 psmax = -5
 psmin = -1
@@ -17,9 +19,10 @@ tbd = 3.0
 kt = 0.12
 to = 22
 
-fi = 0.598
+fi = 0.5257
 --fi = 0.737
 fu = 0
+
 
 
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
@@ -31,9 +34,11 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 -- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
 -- day  = day' <>*> constant 0.0
 
+sunrise = 6
+sunset = 18
 temp' = constant 22.0
 photo' = constant 12.0
-light = between 6 18 (constant True) (constant False)
+light = between sunrise sunset (constant True) (constant False)
 day = repeatEvery 24 light
 moist = constant 1.1
 par = constant 120.0
@@ -46,20 +51,38 @@ co2 = 42.0
 
 --------- plant dev -----
 idev = (*)
-       <$> constant 0.374
+       <$> constant 0.3985
        <*> (photo' <-*> constant 10.0)
 
 idev' = (/)
        <$> idev
        <*> constant 4.0
 
-idev'' = constant 0.626 <+*> idev'
+idev'' = constant 0.6015 <+*> idev'
 
 pperiod =
-  when (photo' <<*> constant 10.0) (constant 0.626) `orElse`
+  when (photo' <<*> constant 10.0) (constant 0.6015) `orElse`
   (when (photo' <<*> constant 14.0) idev'' `orElse` constant 1.0)
 
-thermal = when day temp `orElse` constant 0.0
+lightFr t
+  | td <= sunrise || td >= sunset + 1 = 0
+  | td >= sunrise + 1 && td < sunset = 1
+  | td <= sunrise + 1 = td - sunrise
+  | otherwise = sunset - td + 1
+  where
+    td = mod' t 24
+
+thrm t
+    | lightFr t == 0 = pN * (max tempt 0)
+    | lightFr t == 1 = (max tempt 0)
+    | otherwise =
+        max 0 (tempt * lightFr t) + pN * (max 0 tempt * (1 - lightFr t))
+  where
+    tempt = at temp t
+
+thermal = mkFluent thrm
+
+---thermal = when day temp `orElse` constant 0.0
 
 ptu = (*) <$> thermal <*> pperiod
 
@@ -71,9 +94,9 @@ favTemp temp = temp >= tmin && temp <= tmax
 
 wcAcc wc t = wc + exp k * ((t-tmin)**o) * ((tmax-t)**ksi)
   where
-    k   = -5.1748
-    o   = 2.2256
-    ksi = 0.99590
+    k   = -5.17
+    o   = 2.23
+    ksi = 1
 
 wcUpd t wc =
   if favTemp ctemp
@@ -132,7 +155,7 @@ htu t a psi
 
 
 ---- infloresence dev -----
-disp = when (ntemp <>*> constant 0.0) ntemp `orElse` (constant 0.0)
+disp = when (ntemp <>*> constant 0.0) ntemp `orElse` constant 0.0
   where
     ntemp = temp <-*> constant tbd
 

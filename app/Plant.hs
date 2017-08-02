@@ -52,7 +52,7 @@ median xs = (sort xs) !! mid
     
 avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
-    in (realToFrac (t) / realToFrac (n))
+    in (realToFrac t / realToFrac n)
 
 getMonth time = m
   where
@@ -470,6 +470,27 @@ md =
         ]
     , initState = mkSt'
     }
+
+mdLite =
+    Model
+    { rules =
+        [ dev
+        , trans
+        , growth
+        , assim
+        , leafCr
+        , starchConv
+        , maintRes
+        , rootGrowth
+        , rootMaint
+        , leafTransl
+        , rootTransl
+        , devp
+        , devep  
+        , eme
+        ]
+    , initState = mkSt'
+    }
     
 carbon =
     Observable
@@ -524,4 +545,4 @@ avgRosMass = Observable { name = "avgRosMass",
 
 
 hasFlowered :: Multiset Agent -> Bool
-hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
+hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
