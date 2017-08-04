@@ -20,11 +20,36 @@ fplot =
 
 fout = "out/out.txt"
 
+main = goPlot [leafMass, eplantD]
 
---main = runT md (365*1*24) [leafMass, eplantD]
---main = runUntil mdLite hasFlowered fout [leafMass, plantD, eplantD]
-main = getEnd
---main = mainDistr
+data TRange
+    = NSteps Int
+    | ETime Time
+    | Sample Time
+             Time
+    deriving (Show)
+
+type T a = [(Time, a)]
+
+data Experiment a b = Experiment
+    { obss :: Observable a
+    , ts :: [Time]
+    , m :: Model a
+    , n :: Int
+    , out :: [T Obs] -> IO ()
+    }
+
+runExp :: Experiment a b -> IO ()
+runExp = undefined
+                                
+tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
+tsample _ [] = []
+tsample [] _ = []
+tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
+tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
+    | ts1 < t1 = (ts1, v1) : tsample tss tv
+    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
+    | ts1 >= t2 = tsample ts tvs
 
 runUntil
     :: (Ord a, Show a)
@@ -62,19 +87,21 @@ getEnd = do
   print (avg $ map snd tobss)
   mapM_ (plotObs fplot tobsss) [0, 1]
   
-goPlot = do
+goPlot obss = do
     rgen <- R.getStdGen
-    let obssF = map gen [leafMass, eplantD]
-    let trajs = runTT rgen 22 hasFlowered md
-    let tobsss = map ((flip applyObs) obssF) (drop 2 trajs)
-    mapM_ (plotObs fplot tobsss) [0, 1]
+    let obssF = map gen obss
+    let obsNms = map name obss    
+    let trajs = runTT rgen 20 hasFlowered md
+    let tobsss = map ((flip applyObs) obssF) trajs
+    let stobsss = map (tsample [0.1..1000]) tobsss
+    mapM_ (plotObs obsNms stobsss) [0, 1]
     
 avgT :: Time -> [Fluent Obs] -> Obs
 avgT t fs = avg [at f t | f <- fs]
 
 avgTraj i tobsss =
     [ (fromIntegral t, avgT (fromIntegral t) fluents)
-    | t <- [0 .. tend] ]
+    | t <- [1 .. tend] ]
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
@@ -96,17 +123,18 @@ getLast i tobss = (t, obss !! i)
     (t, obss) = last tobss
 
 --- plot ith observable
-plotObs fn tobsss i = renderableToFile def (fn !! i) chart
+plotObs nms tobsss i = renderableToFile def fout chart
   where
+    fout = (nms !! i) ++ ".png"
     avgTj = avgTraj i tobsss
-    lines = (map (mkLine i) tobsss) ++ [mkSolidLine avgTj]
+    lines = (map (mkLine i) tobsss) ++ [mkSolidLine avgTj] 
     
     layout = layout_plots .~ lines
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0  
            $ layout_x_axis . laxis_title .~ "time (h)"
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0  
-           $ layout_y_axis . laxis_title .~ "Rosette weight (g)"
+           $ layout_y_axis . laxis_title .~ (nms !! i)
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
