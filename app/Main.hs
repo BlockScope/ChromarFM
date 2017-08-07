@@ -10,124 +10,26 @@ import Control.Monad
 import Data.List
 import qualified System.Random as R
 
-fplot =
-    [ "out/leafMass.png"
-    , "out/rArea.png"
-    , "out/carbon.png"
-    , "out/nl.png"
-    , "out/rootMass.png"
-    ]
+outDir = "out"
 
-fout = "out/out.txt"
+main = goPlot 20 [leafMass, eplantD] [0 .. 1000] outDir
 
-main = goPlot [leafMass, eplantD]
-
-data TRange
-    = NSteps Int
-    | ETime Time
-    | Sample Time
-             Time
-    deriving (Show)
-
-type T a = [(Time, a)]
-
-data Experiment a b = Experiment
-    { obss :: Observable a
-    , ts :: [Time]
-    , m :: Model a
-    , n :: Int
-    , out :: [T Obs] -> IO ()
-    }
-
-runExp :: Experiment a b -> IO ()
-runExp = undefined
-                                
-tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
-tsample _ [] = []
-tsample [] _ = []
-tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
-tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
-    | ts1 < t1 = (ts1, v1) : tsample tss tv
-    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
-    | ts1 >= t2 = tsample ts tvs
-
-runUntil
-    :: (Ord a, Show a)
-    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
-runUntil (Model {rules = rs
-             ,initState = s}) fb fn obss = do
-    rgen <- R.getStdGen
-    let traj = takeWhile (\s -> fb (getM s)) (simulate rgen rs s)
-    writeObs fn obss traj
-
-mainDistr :: IO ()
-mainDistr = do
-  gen <- R.getStdGen
-  let tend = (365*60*24)
-  let traj = takeWhile (\s -> getT s < tend) (simulate gen (rules md) (initState md))
-  let lState = getM (last traj)
-  let rms = head [rm | (System{rosMass=rm}, _) <- lState]
-  let (gts, fts, ss) = head [(gt, ft, s) | (System{germTimes=gt, flowerTimes=ft, ssTimes=s}, _) <- lState]
-  let gts = head [gt | (System{germTimes=gt}, _) <- lState]
-  mapM_ print rms
-  print "----------"
-  mapM_ print gts
-  print "----------"
-  mapM_ print fts
-  print "----------"
-  mapM_ print ss
-
-getEnd = do
-  rgen <- R.getStdGen
-  let obssF = map gen [leafMass, eplantD]
-  let trajs = runTT rgen 20 hasFlowered md
-  let tobsss = map ((flip applyObs) obssF) trajs
-  let tobss = map (getLast 0) tobsss
-  print (avg $ map fst tobss)
-  print (avg $ map snd tobss)
-  mapM_ (plotObs fplot tobsss) [0, 1]
-  
-goPlot obss = do
+goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
     let obssF = map gen obss
-    let obsNms = map name obss    
-    let trajs = runTT rgen 20 hasFlowered md
-    let tobsss = map ((flip applyObs) obssF) trajs
-    let stobsss = map (tsample [0.1..1000]) tobsss
-    mapM_ (plotObs obsNms stobsss) [0, 1]
-    
-avgT :: Time -> [Fluent Obs] -> Obs
-avgT t fs = avg [at f t | f <- fs]
-
-avgTraj i tobsss =
-    [ (fromIntegral t, avgT (fromIntegral t) fluents)
-    | t <- [1 .. tend] ]
-  where
-    tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
-    fluents = map flookup tobsssi
-    
-runTT
-    :: (Eq a)
-    => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]
-runTT gen n fb md
-    | n == 0 = []
-    | otherwise = traj : (runTT rg2 (n - 1) fb md)
-  where
-    (rg1, rg2) = R.split gen
-    traj =
-        takeWhile (\s -> fb (getM s)) (simulate rg1 (rules md) (initState md))
-        
-getLast :: Int -> [(Time, [Obs])] -> (Time, Obs)
-getLast i tobss = (t, obss !! i)
-  where
-    (t, obss) = last tobss
+    let obsNms = map name obss
+    let nObs = length obss
+    let trajs = runTT rgen nreps hasFlowered md
+    let tobsss = map (flip applyObs obssF) trajs
+    let stobsss = map (tsample tss) tobsss
+    mapM_ (plotObs obsNms stobsss outDir) [0 .. nObs]
 
 --- plot ith observable
-plotObs nms tobsss i = renderableToFile def fout chart
+plotObs nms tobsss outDir i = renderableToFile def fout chart
   where
-    fout = (nms !! i) ++ ".png"
+    fout = outDir ++ "/" ++ (nms !! i) ++ ".png"
     avgTj = avgTraj i tobsss
-    lines = (map (mkLine i) tobsss) ++ [mkSolidLine avgTj] 
+    lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj] 
     
     layout = layout_plots .~ lines
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
@@ -140,11 +42,6 @@ plotObs nms tobsss i = renderableToFile def fout chart
            $ def
            
     chart = toRenderable layout
-
-mkXYPairs :: Int -> [(Time, [Obs])] -> [(Time, Obs)]
-mkXYPairs i tobss =
-    [ (t, obss !! i)
-    | (t, obss) <- tobss ]
 
 mkLine :: Int -> [(Time, [Obs])] -> Plot Time Obs
 mkLine i tobss =
@@ -166,4 +63,76 @@ mkSolidLine tobss =
          3.0 $
          def)
 
+mkXYPairs :: Int -> [(Time, [Obs])] -> [(Time, Obs)]
+mkXYPairs i tobss =
+    [ (t, obss !! i)
+    | (t, obss) <- tobss ]
 
+avgT :: Time -> [Fluent Obs] -> Obs
+avgT t fs = avg [at f t | f <- fs]
+
+avgTraj i tobsss =
+    [ (fromIntegral t, avgT (fromIntegral t) fluents)
+    | t <- [1 .. tend] ]
+  where
+    tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
+    fluents = map flookup tobsssi
+    
+runTT
+    :: (Eq a)
+    => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]
+runTT gen n fb md
+    | n == 0 = []
+    | otherwise = traj : runTT rg2 (n - 1) fb md
+  where
+    (rg1, rg2) = R.split gen
+    traj = takeWhile (fb . getM) (simulate rg1 (rules md) (initState md))
+
+runUntil
+    :: (Ord a, Show a)
+    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
+runUntil Model {rules = rs
+               ,initState = s} fb fn obss = do
+    rgen <- R.getStdGen
+    let traj = takeWhile (fb . getM) (simulate rgen rs s)
+    writeObs fn obss traj
+
+tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
+tsample _ [] = []
+tsample [] _ = []
+tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
+tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
+    | ts1 < t1 = (ts1, v1) : tsample tss tv
+    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
+    | ts1 >= t2 = tsample ts tvs
+
+mainDistr :: IO ()
+mainDistr = do
+    gen <- R.getStdGen
+    let tend = (365 * 60 * 24)
+    let traj =
+            takeWhile
+                (\s -> getT s < tend)
+                (simulate gen (rules md) (initState md))
+    let lState = getM (last traj)
+    let rms =
+            head
+                [ rm
+                | (System {rosMass = rm}, _) <- lState ]
+    let (gts, fts, ss) =
+            head
+                [ (gt, ft, s)
+                | (System {germTimes = gt
+                          ,flowerTimes = ft
+                          ,ssTimes = s}, _) <- lState ]
+    let gts =
+            head
+                [ gt
+                | (System {germTimes = gt}, _) <- lState ]
+    mapM_ print rms
+    print "----------"
+    mapM_ print gts
+    print "----------"
+    mapM_ print fts
+    print "----------"
+    mapM_ print ss
