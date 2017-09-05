@@ -23,8 +23,6 @@ fi = 0.5257
 --fi = 0.737
 fu = 0
 
-
-
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
 
 -- temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
@@ -34,10 +32,10 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 -- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
 -- day  = day' <>*> constant 0.0
 
-sunrise = 6
-sunset = 18
+sunrise = 10
+sunset = 14
 temp' = constant 22.0
-photo' = constant 12.0
+photo' = constant (sunset - sunrise)
 light = between sunrise sunset (constant True) (constant False)
 day = repeatEvery 24 light
 moist = constant 1.1
