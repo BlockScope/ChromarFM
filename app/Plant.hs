@@ -25,7 +25,7 @@ tend = 1000
 thrmFinal = sum [at thermal (fromIntegral ti) | ti <- [1..tend]]
 
 isLeaf :: Agent -> Bool
-isLeaf (Leaf {}) = True
+isLeaf Leaf {} = True
 isLeaf _ = False
 
 isPlant :: Agent -> Bool
@@ -258,8 +258,8 @@ leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
 
 data Attrs = Attrs
-  { ind :: !Int
-  , psi :: !Double
+  { ind :: Int
+  , psi :: Double
   } deriving (Ord, Eq, Show)
              
 data Agent
@@ -267,27 +267,27 @@ data Agent
              , flowerTimes :: [Int]
              , ssTimes :: [Int]
              , rosMass :: [Double]}
-    | Seed { mass :: !Double
-           , attr :: !Attrs
-           , dg :: !Double
-           , art :: !Double}
-    | Leaf { i :: !Int
-           , ta :: !Double
-           , m :: !Double
-           , a :: !Double}
-    | Cell { c :: !Double
-           , s :: !Double}
-    | Root { m :: !Double}
-    | Plant { thrt :: !Double
-            , attr :: !Attrs
-            , dg :: !Double
-            , wct :: !Double}
-    | EPlant { thrt :: !Double
-             , attr :: !Attrs
-             , dg :: !Double
-             , wct :: !Double}
-    | FPlant { attr :: !Attrs
-             , dg :: !Double}
+    | Seed { mass :: Double
+           , attr :: Attrs
+           , dg :: Double
+           , art :: Double}
+    | Leaf { i :: Int
+           , ta :: Double
+           , m :: Double
+           , a :: Double}
+    | Cell { c :: Double
+           , s :: Double}
+    | Root { m :: Double}
+    | Plant { thrt :: Double
+            , attr :: Attrs
+            , dg :: Double
+            , wct :: Double}
+    | EPlant { thrt :: Double
+             , attr :: Attrs
+             , dg :: Double
+             , wct :: Double}
+    | FPlant { attr :: Attrs
+             , dg :: Double}
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
