@@ -12,17 +12,19 @@ import qualified System.Random as R
 
 outDir = "out"
 
-main = goPlot 20 [leafMass, eplantD] [0 .. 1000] outDir
+main = runUntil mdLite hasFlowered "out/out.txt" [starch]
+
+--mainPlot = goPlot 5 [starch] [0 .. 1500] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
     let obssF = map gen obss
     let obsNms = map name obss
     let nObs = length obss
-    let trajs = runTT rgen nreps hasFlowered md
+    let trajs = runTT rgen nreps hasFlowered mdLite
     let tobsss = map (flip applyObs obssF) trajs
     let stobsss = map (tsample tss) tobsss
-    mapM_ (plotObs obsNms stobsss outDir) [0 .. nObs]
+    mapM_ (plotObs obsNms stobsss outDir) [0]
 
 --- plot ith observable
 plotObs nms tobsss outDir i = renderableToFile def fout chart
