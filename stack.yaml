@@ -4,6 +4,7 @@ packages:
 - '.'
 - location:
     git: git@github.com:azardilis/coloured-petri-nets.git
-    commit: 22cdd80f1362e1a1b2540414625cde58d5f58dfe
+    commit: 2e39c0449cd3ec6b37ebda24eab73ea3a765388e
+  extra-dep: true
 
 extra-deps: [normaldistribution-1.1.0.3]
