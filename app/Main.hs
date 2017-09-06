@@ -12,9 +12,9 @@ import qualified System.Random as R
 
 outDir = "out"
 
-main = runUntil mdLite hasFlowered "out/out.txt" [starch]
+-- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
 
---mainPlot = goPlot 5 [starch] [0 .. 1500] outDir
+main = goPlot 5 [rootMass, leafMass, nL, carbon] [0 .. 1000] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -24,7 +24,8 @@ goPlot nreps obss tss outDir = do
     let trajs = runTT rgen nreps hasFlowered mdLite
     let tobsss = map (flip applyObs obssF) trajs
     let stobsss = map (tsample tss) tobsss
-    mapM_ (plotObs obsNms stobsss outDir) [0]
+    mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
+    print $ avgLastTime stobsss
 
 --- plot ith observable
 plotObs nms tobsss outDir i = renderableToFile def fout chart
@@ -107,6 +108,9 @@ tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
     | ts1 < t1 = (ts1, v1) : tsample tss tv
     | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
     | ts1 >= t2 = tsample ts tvs
+
+avgLastTime :: [[(Time, a)]] -> Time
+avgLastTime tobss = avg $ map (fst . last) tobss
 
 mainDistr :: IO ()
 mainDistr = do
