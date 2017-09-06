@@ -32,8 +32,8 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 -- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
 -- day  = day' <>*> constant 0.0
 
-sunrise = 10
-sunset = 14
+sunrise = 6
+sunset = 18
 temp' = constant 22.0
 photo' = constant (sunset - sunrise)
 light = between sunrise sunset (constant True) (constant False)
@@ -162,7 +162,7 @@ disp = when (ntemp <>*> constant 0.0) ntemp `orElse` constant 0.0
 --------------
 parseLine :: Int -> T.Text -> (Double, Double)
 parseLine n ln = (read $ T.unpack time, read $ T.unpack temp) where
-  elems = T.splitOn (T.pack ",") ln
+  elems = T.splitOn (T.pack " ") ln
   time = elems !! 0
   temp = elems !! n
 
