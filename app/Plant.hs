@@ -322,9 +322,9 @@ growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       EPlant{thrt=tt}, Leaf{m=m+(c2m $ gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @10*ld [c-grRes > cEqui]
+      @ld [c-grRes > cEqui]
         where
-          gr = (g leafMass) / 10.0,
+          gr = (g leafMass),
           a' = (sla' tt) * (m + gr),
           ld = ldem i ta tt,
           grRes = 1.24 * gr,
