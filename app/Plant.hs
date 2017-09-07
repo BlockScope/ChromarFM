@@ -20,7 +20,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 760
+tend = 1300
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
