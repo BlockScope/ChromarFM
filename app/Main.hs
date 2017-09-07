@@ -10,11 +10,11 @@ import Control.Monad
 import Data.List
 import qualified System.Random as R
 
-outDir = "out"
+outDir = "out/fmliteExps"
 
 -- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
 
-main = goPlot 5 [rootMass, leafMass, nL, carbon] [0 .. 1000] outDir
+main = goPlot 5 [leafMass] [0 .. 1500] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -25,12 +25,20 @@ goPlot nreps obss tss outDir = do
     let tobsss = map (flip applyObs obssF) trajs
     let stobsss = map (tsample tss) tobsss
     mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
-    print $ avgLastTime stobsss
+    mapM_ (writeAvgObs obsNms stobsss outDir) [0 .. (nObs - 1)]
+
+writeAvgObs nms tobsss outDir i = writeFile fout (unlines stpoints)
+  where
+    bOutDir = outDir ++ "/" ++ "text"
+    fout = bOutDir ++ "/" ++ (nms !! i) ++ ".txt"
+    avgTj = avgTraj i tobsss
+    stpoints = map (\(t, v) -> show t ++ " "  ++ show v) avgTj
 
 --- plot ith observable
 plotObs nms tobsss outDir i = renderableToFile def fout chart
   where
-    fout = outDir ++ "/" ++ (nms !! i) ++ ".png"
+    bOutDir = outDir ++ "/" ++ "plots"
+    fout = bOutDir ++ "/" ++ (nms !! i) ++ ".png"
     avgTj = avgTraj i tobsss
     lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj] 
     
@@ -76,10 +84,11 @@ avgT t fs = avg [at f t | f <- fs]
 
 avgTraj i tobsss =
     [ (fromIntegral t, avgT (fromIntegral t) fluents)
-    | t <- [1 .. tend] ]
+    | t <- [1 .. te] ]
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
+    te = 1500
     
 runTT
     :: (Eq a)
