@@ -20,9 +20,9 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 1000
+tend = 760
 
-thrmFinal = sum [at thermal (fromIntegral ti) | ti <- [1..tend]]
+thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
 isLeaf :: Agent -> Bool
 isLeaf Leaf {} = True
@@ -322,9 +322,9 @@ growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @ld [c-grRes > cEqui]
+      @10*ld [c-grRes > cEqui]
         where
-          gr = (g leafMass),
+          gr = (g leafMass) / 10.0,
           a' = (sla' tt) * (m + (c2m gr)),
           ld = ldem i ta tt,
           grRes = 1.24 * gr,
@@ -364,9 +364,9 @@ rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
     EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rg, s=s'}
-    @rdem tt [c-rg > cEqui]
+    @10*rdem tt [c-rg > cEqui]
       where
-        rg = pr*g leafMass,
+        rg = (pr*g leafMass) / 10.0,
         cEqui = 0.05 * rArea
   |]
 
@@ -560,6 +560,17 @@ dem1 =
                     , i == 1 ]
     }
 
+trdem =
+    Observable
+    { name = "rdem"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in rdem tt
+    }
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
