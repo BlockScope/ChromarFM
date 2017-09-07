@@ -321,11 +321,11 @@ trans =
 growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
-      EPlant{thrt=tt}, Leaf{m=m+(c2m $ gr), a=max a a'}, Cell{c=c-grRes, s=s'}
+      EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
       @ld [c-grRes > cEqui]
         where
           gr = (g leafMass),
-          a' = (sla' tt) * (m + gr),
+          a' = (sla' tt) * (m + (c2m gr)),
           ld = ldem i ta tt,
           grRes = 1.24 * gr,
           cEqui = 0.05 * rArea
@@ -413,7 +413,7 @@ eme =
           Leaf{ i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
           Leaf{ i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
           Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
-          Cell{ c = initC * ra, s=initS * initC * ra} @emerg d [True]
+          Cell{ c = initC * ra, s=initS * initC * ra} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
               fR = rdem 100,
@@ -542,6 +542,23 @@ avgRosMass = Observable { name = "avgRosMass",
                           gen = avgMass }
   where
     avgMass mix = avg (head [rms | (System{rosMass=rms}, _) <- mix ])
+
+dem1 =
+    Observable
+    { name = "dem1"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in sum
+                    [ ldem i ta tt
+                    | (Leaf {ta = ta
+                            ,m = m
+                            ,i = i}, _) <- s
+                    , i == 1 ]
+    }
 
 
 hasFlowered :: Multiset Agent -> Bool
