@@ -33,7 +33,7 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 -- day  = day' <>*> constant 0.0
 
 sunrise = 6
-sunset = 14
+sunset = 18 :: Double
 temp' = constant 22.0
 photo' = constant (sunset - sunrise)
 light = between sunrise sunset (constant True) (constant False)

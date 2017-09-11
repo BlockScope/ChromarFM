@@ -7,6 +7,7 @@ import GHC.Exts
 import GHC.Generics
 import Data.Time.Calendar.MonthDay
 import Data.List
+import Data.Fixed
 import Chromar
 import Env
 import Params
@@ -20,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 1300
+tend = 750
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -170,6 +171,25 @@ dassim phR ra = phR * ra * gc
   where
     gc = 86400 * 10**(-6)*12 * (1/24.0)
 
+calcSDeg :: Double -> Double -> Double
+calcSDeg s tt
+    | h < sunrise =
+        s / (kStarch * ((sunrise - h) / (sunrise + 24 - sunset)) + 1 - kStarch)
+    | h > sunset =
+        s /
+        (kStarch * ((24 - h + sunrise) / (24 - sunset + sunrise)) + 1 - kStarch)
+    | otherwise = 0.0
+  where
+    h = mod' tt 24.0
+
+close tt sset = abs (tt - sset) < 2
+
+updSDeg s sdeg tt
+  | close h sunset = (s * kStarch) / (24 - (sunset - sunrise))
+  | otherwise = sdeg
+  where
+    h = mod' tt 24.0
+    
 -- sla =
 --     (*) <$> constant slaCot <*>
 --     (exp <$> ((*) <$> constant slaExp <*> (thr <-*> constant 100)))
@@ -252,7 +272,9 @@ mkSt' :: Multiset Agent
 mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
 
 mkSt'' :: Multiset Agent
-mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]}, Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0} ]
+mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
+             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0}
+            ]
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -282,7 +304,8 @@ data Agent
             , attr :: Attrs
             , dg :: Double
             , wct :: Double}
-    | EPlant { thrt :: Double
+    | EPlant { sdeg :: Double
+             , thrt :: Double
              , attr :: Attrs
              , dg :: Double
              , wct :: Double}
@@ -342,8 +365,8 @@ assim =
 
 starchConv =
   [rule|
-    Cell{c=c, s=s'} -->
-    Cell{c=c+(s2c s' photo'), s=s'-(s2c s' photo')} @1.0 [not day]
+    EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
+    EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day]
   |]
 
 leafCr =
@@ -404,20 +427,21 @@ devp =
          Plant{thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
 
 devep =
-  [rule| EPlant{thrt=tt, dg=d, wct=w} -->
-         EPlant{thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
+  [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
+         Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
 
 eme =
   [rule| Plant{thrt=tt, attr=ar, dg=d, wct=w} -->
-         EPlant{thrt=tt, attr=ar, dg=d, wct=w},
+         EPlant{sdeg=calcSDeg si time, thrt=tt, attr=ar, dg=d, wct=w},
           Leaf{ i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
           Leaf{ i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
           Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
-          Cell{ c = initC * ra, s=initS * initC * ra} @emerg tt [True]
+          Cell{ c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
               fR = rdem 100,
-              ra = 2*cotArea*cos (10/180*pi)
+              ra = 2*cotArea*cos (10/180*pi),
+              si = initS * initC * ra
   |]
   
 leafD =
@@ -571,6 +595,8 @@ trdem =
                          | (EPlant {thrt = thr}, _) <- s ]
              in rdem tt
     }
+
+sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212

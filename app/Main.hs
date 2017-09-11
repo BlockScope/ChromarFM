@@ -10,11 +10,11 @@ import Control.Monad
 import Data.List
 import qualified System.Random as R
 
-outDir = "out/fmliteExps"
+outDir = "out/fmliteExps12h"
 
 -- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
 
-main = goPlot 5 [leafMass] [0 .. 1500] outDir
+main = goPlot 50 [leafMass, starch, sdg] [0 .. 1000] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -26,7 +26,8 @@ goPlot nreps obss tss outDir = do
     let stobsss = map (tsample tss) tobsss
     mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
     mapM_ (writeAvgObs obsNms stobsss outDir) [0 .. (nObs - 1)]
-
+    print $ avgLastTime stobsss
+    
 writeAvgObs nms tobsss outDir i = writeFile fout (unlines stpoints)
   where
     bOutDir = outDir ++ "/" ++ "text"
@@ -88,7 +89,7 @@ avgTraj i tobsss =
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 1500
+    te = 1000
     
 runTT
     :: (Eq a)
