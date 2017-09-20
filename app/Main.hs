@@ -1,20 +1,20 @@
-import Plant
-import Chromar
-import Data.Colour
-import Data.Colour.Names
-import Data.Default.Class
-import Control.Lens hiding (at)
-import Graphics.Rendering.Chart.Backend.Cairo
-import Graphics.Rendering.Chart
-import Control.Monad
-import Data.List
-import qualified System.Random as R
+import           Chromar
+import           Control.Lens                           hiding (at)
+import           Control.Monad
+import           Data.Colour
+import           Data.Colour.Names
+import           Data.Default.Class
+import           Data.List
+import           Graphics.Rendering.Chart
+import           Graphics.Rendering.Chart.Backend.Cairo
+import           Plant
+import qualified System.Random                          as R
 
 outDir = "out/fmliteExps12h"
 
 -- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
 
-main = goPlot 50 [leafMass, starch, sdg] [0 .. 1000] outDir
+main = goPlot 50 [carbon, leafMass, starch, totalMaint] [0 .. 1000] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -27,7 +27,7 @@ goPlot nreps obss tss outDir = do
     mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
     mapM_ (writeAvgObs obsNms stobsss outDir) [0 .. (nObs - 1)]
     print $ avgLastTime stobsss
-    
+
 writeAvgObs nms tobsss outDir i = writeFile fout (unlines stpoints)
   where
     bOutDir = outDir ++ "/" ++ "text"
@@ -41,18 +41,18 @@ plotObs nms tobsss outDir i = renderableToFile def fout chart
     bOutDir = outDir ++ "/" ++ "plots"
     fout = bOutDir ++ "/" ++ (nms !! i) ++ ".png"
     avgTj = avgTraj i tobsss
-    lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj] 
-    
+    lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj]
+
     layout = layout_plots .~ lines
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0  
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title .~ "time (h)"
-           $ layout_x_axis . laxis_title_style . font_size .~ 20.0  
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
            $ layout_y_axis . laxis_title .~ (nms !! i)
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
-           
+
     chart = toRenderable layout
 
 mkLine :: Int -> [(Time, [Obs])] -> Plot Time Obs
@@ -90,7 +90,7 @@ avgTraj i tobsss =
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
     te = 1000
-    
+
 runTT
     :: (Eq a)
     => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]

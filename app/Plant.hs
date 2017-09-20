@@ -1,17 +1,17 @@
-{-# LANGUAGE  QuasiQuotes #-}
-{-# LANGUAGE  TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes     #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Plant where
 
-import GHC.Exts
-import GHC.Generics
-import Data.Time.Calendar.MonthDay
-import Data.List
-import Data.Fixed
-import Chromar
-import Env
-import Params
-import Photo
+import           Chromar
+import           Data.Fixed
+import           Data.List
+import           Data.Time.Calendar.MonthDay
+import           Env
+import           GHC.Exts
+import           GHC.Generics
+import           Params
+import           Photo
 
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
@@ -50,7 +50,7 @@ median [] = 0
 median xs = (sort xs) !! mid
   where
     mid = length xs  `div` 2
-    
+
 avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
     in (realToFrac t / realToFrac n)
@@ -189,7 +189,7 @@ updSDeg s sdeg tt
   | otherwise = sdeg
   where
     h = mod' tt 24.0
-    
+
 -- sla =
 --     (*) <$> constant slaCot <*>
 --     (exp <$> ((*) <$> constant slaExp <*> (thr <-*> constant 100)))
@@ -247,6 +247,19 @@ maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
     rl20 = (p * c + p') * 24
     rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
+maint22 :: Double -> Double -> Int -> Obs -> Obs -> Double
+maint22 m a i iMax nl = rlRes * leafArea * (1 / 24.0)
+  where
+    tempt = 22.0 :: Double
+    p = 0.085
+    p' = 0.016
+    c = m2c m
+    toRad d = d / 180 * pi
+    ang = toRad $ getAngle i (floor iMax) (floor nl)
+    leafArea = a * (cos ang)
+    rl20 = (p * c + p') * 24
+    rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
+
 -- growth in grams of mass for a leaf with mass m
 g m = gmax * (1/24.0)
   where
@@ -283,34 +296,34 @@ data Attrs = Attrs
   { ind :: Int
   , psi :: Double
   } deriving (Ord, Eq, Show)
-             
+
 data Agent
-    = System { germTimes :: [Int]
+    = System { germTimes   :: [Int]
              , flowerTimes :: [Int]
-             , ssTimes :: [Int]
-             , rosMass :: [Double]}
+             , ssTimes     :: [Int]
+             , rosMass     :: [Double]}
     | Seed { mass :: Double
            , attr :: Attrs
-           , dg :: Double
-           , art :: Double}
-    | Leaf { i :: Int
+           , dg   :: Double
+           , art  :: Double}
+    | Leaf { i  :: Int
            , ta :: Double
-           , m :: Double
-           , a :: Double}
+           , m  :: Double
+           , a  :: Double}
     | Cell { c :: Double
            , s :: Double}
     | Root { m :: Double}
     | Plant { thrt :: Double
             , attr :: Attrs
-            , dg :: Double
-            , wct :: Double}
+            , dg   :: Double
+            , wct  :: Double}
     | EPlant { sdeg :: Double
              , thrt :: Double
              , attr :: Attrs
-             , dg :: Double
-             , wct :: Double}
+             , dg   :: Double
+             , wct  :: Double}
     | FPlant { attr :: Attrs
-             , dg :: Double}
+             , dg   :: Double}
     deriving (Eq, Ord, Show)
 
 isCell (Cell{c=c}) = True
@@ -321,7 +334,7 @@ s2c s pp = (kStarch * s) / (24 - pp)
 
 emerg d
   | d > 110 = 1.0
-  | otherwise = 0.0            
+  | otherwise = 0.0
 
 $(return [])
 
@@ -333,7 +346,7 @@ dev =
            Seed{attr=atr, dg = d + (htu time a (psi atr)), art=a + (arUpd moist temp)}
            @1.0
    |]
-  
+
 trans =
     [rule|
         System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
@@ -443,7 +456,7 @@ eme =
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
-  
+
 leafD =
   [rule| FPlant{dg=d}, Leaf{ta=ta} --> FPlant{dg=d} @1.0 |]
 
@@ -484,13 +497,13 @@ md =
         , leafTransl
         , rootTransl
         , devp
-        , devep  
+        , devep
         , eme
         , leafD'
-        , leafD  
+        , leafD
         , transp
         , devfp
-        , transfp 
+        , transfp
         ]
     , initState = mkSt'
     }
@@ -510,12 +523,12 @@ mdLite =
         , leafTransl
         , rootTransl
         , devp
-        , devep  
+        , devep
         , eme
         ]
     , initState = mkSt'
     }
-    
+
 carbon =
     Observable
     { name = "carbon"
@@ -567,23 +580,6 @@ avgRosMass = Observable { name = "avgRosMass",
   where
     avgMass mix = avg (head [rms | (System{rosMass=rms}, _) <- mix ])
 
-dem1 =
-    Observable
-    { name = "dem1"
-    , gen =
-        \s ->
-             let tt =
-                     sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in sum
-                    [ ldem i ta tt
-                    | (Leaf {ta = ta
-                            ,m = m
-                            ,i = i}, _) <- s
-                    , i == 1 ]
-    }
-
 trdem =
     Observable
     { name = "rdem"
@@ -596,7 +592,28 @@ trdem =
              in rdem tt
     }
 
+totalMaint =
+    Observable
+    { name = "totalMaint"
+    , gen =
+        \s ->
+             let ra = rosArea s
+                 nl = nLeaves s
+                 iMax = maxLeaf s
+                 rm =
+                     sum
+                         [ m
+                         | (Root {m = m}, _) <- s ]
+                 rMaint = maint22 rm ra iMax (fromIntegral iMax) (fromIntegral nl)
+             in rMaint +
+                (sum
+                     [ maint22 m a i (fromIntegral iMax) (fromIntegral nl)
+                     | (Leaf {i=i, a=a, m=m}, _) <- s ])
+    }
+
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
+
+
