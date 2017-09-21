@@ -266,6 +266,54 @@ g m = gmax * (1/24.0)
     lc = m2c m
     gmax = 0.408 * lc
 
+totalMaint =
+    Observable
+    { name = "totalMaint"
+    , gen =
+        \s ->
+             let ra = rosArea s
+                 nl = nLeaves s
+                 iMax = maxLeaf s
+                 rm =
+                     sum
+                         [ m
+                         | (Root {m = m}, _) <- s ]
+                 rMaint =
+                     maint22 rm ra iMax (fromIntegral iMax) (fromIntegral nl)
+             in if (nl > 0)
+                    then rMaint +
+                         (sum
+                              [ maint22
+                                   m
+                                   a
+                                   i
+                                   (fromIntegral iMax)
+                                   (fromIntegral nl)
+                              | (Leaf {i = i
+                                      ,a = a
+                                      ,m = m}, _) <- s ])
+                    else 0.0
+    }
+
+potGrowth =
+    Observable
+    { name = "potGrowth"
+    , gen =
+        \s ->
+             let rosMass = sumM m . select isLeaf $ s
+             in g rosMass
+    }
+
+growthMaint = Observable { name = "growthMaint",
+                           gen = \s -> (gen totalMaint s) + (gen potGrowth s) }
+
+----dassim (phRate temp par photo') rArea
+cAssim = Observable { name = "assim",
+                      gen = \s -> let phR = phRate 22.0 120.0 12
+                                      rArea = rosArea s
+                                  in
+                                   0.875*(dassim phR rArea) }
+
 mkSt :: Multiset Agent
 mkSt =
     ms
@@ -381,6 +429,11 @@ starchConv =
     EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
     EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day]
   |]
+
+starchFlow =
+    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0]
+          where
+            extra = cAssim - growthMaint |]
 
 leafCr =
     [rule|
@@ -517,6 +570,7 @@ mdLite =
         , assim
         , leafCr
         , starchConv
+        , starchFlow
         , maintRes
         , rootGrowth
         , rootMaint
@@ -592,28 +646,7 @@ trdem =
              in rdem tt
     }
 
-totalMaint =
-    Observable
-    { name = "totalMaint"
-    , gen =
-        \s ->
-             let ra = rosArea s
-                 nl = nLeaves s
-                 iMax = maxLeaf s
-                 rm =
-                     sum
-                         [ m
-                         | (Root {m = m}, _) <- s ]
-                 rMaint = maint22 rm ra iMax (fromIntegral iMax) (fromIntegral nl)
-             in rMaint +
-                (sum
-                     [ maint22 m a i (fromIntegral iMax) (fromIntegral nl)
-                     | (Leaf {i=i, a=a, m=m}, _) <- s ])
-    }
-
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
-
-
