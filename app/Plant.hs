@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 750
+tend = 1300
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -266,6 +266,50 @@ g m = gmax * (1/24.0)
     lc = m2c m
     gmax = 0.408 * lc
 
+tLDem=
+    Observable
+    { name = "totGrowth"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in (sum
+                    [ ldem i ta tt
+                    | (Leaf {ta = ta
+                            ,m = m
+                            ,i = i}, _) <- s ])
+    }
+
+tRDem =
+    Observable
+    { name = "tRDem"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in rdem tt
+    }
+
+
+rsratio = Observable { name = "rsratio",
+                       gen = \s -> (gen tRDem $ s) / (gen tLDem $ s) * 2.7192 }
+
+
+grD = Observable { name = "grD",
+                   gen = \s -> let rosMass = gen leafMass $ s
+                               in g rosMass + (g rosMass * (gen rsratio $ s)) }
+
+growthMaint = Observable { name = "growthMaint",
+                           gen = \s -> (gen grD $ s) + (gen totalMaint $ s) }
+
+cc = Observable { name = "cc",
+                  gen = \s -> let cassim = gen cAssim $ s
+                              in sum [c + cassim | (Cell{c=c,s=s'}, _) <- s] }
+
 totalMaint =
     Observable
     { name = "totalMaint"
@@ -289,27 +333,15 @@ totalMaint =
                                    i
                                    (fromIntegral iMax)
                                    (fromIntegral nl)
-                              | (Leaf {i = i
+                              | (Leaf {i =i
                                       ,a = a
                                       ,m = m}, _) <- s ])
                     else 0.0
     }
 
-potGrowth =
-    Observable
-    { name = "potGrowth"
-    , gen =
-        \s ->
-             let rosMass = sumM m . select isLeaf $ s
-             in g rosMass
-    }
-
-growthMaint = Observable { name = "growthMaint",
-                           gen = \s -> (gen totalMaint s) + (gen potGrowth s) }
-
 ----dassim (phRate temp par photo') rArea
 cAssim = Observable { name = "assim",
-                      gen = \s -> let phR = phRate 22.0 120.0 12
+                      gen = \s -> let phR = phRate 22.0 120.0 8
                                       rArea = rosArea s
                                   in
                                    0.875*(dassim phR rArea) }
@@ -406,11 +438,11 @@ growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @10*ld [c-grRes > cEqui]
+      @1.0 [c-grRes > cEqui]
         where
-          gr = (g leafMass) / 10.0,
-          a' = (sla' tt) * (m + (c2m gr)),
           ld = ldem i ta tt,
+          gr = (g leafMass) * (ld / tLDem),
+          a' = (sla' tt) * (m + (c2m gr)),
           grRes = 1.24 * gr,
           cEqui = 0.05 * rArea
     |]
@@ -427,13 +459,14 @@ assim =
 starchConv =
   [rule|
     EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
-    EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day]
+    EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
   |]
 
 starchFlow =
-    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0]
+    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0 && day]
           where
-            extra = cAssim - growthMaint |]
+            tgr = g leafMass + (g leafMass * rsratio),
+            extra = max 0.0 (c + cAssim - totalMaint - tgr) |]
 
 leafCr =
     [rule|
@@ -453,9 +486,9 @@ rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
     EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rg, s=s'}
-    @10*rdem tt [c-rg > cEqui]
+    @1.0 [c-rg > cEqui]
       where
-        rg = (pr*g leafMass) / 10.0,
+        rg = (pr*g leafMass * rsratio),
         cEqui = 0.05 * rArea
   |]
 

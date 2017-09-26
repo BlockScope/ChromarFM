@@ -1,12 +1,12 @@
 module Env where
 
-import Chromar.Fluent
-import System.IO.Unsafe
-import qualified Data.Text as T
-import qualified Data.Text.IO as TI
-import qualified Data.Map.Strict as Map
-import Data.Fixed
-import Params
+import           Chromar.Fluent
+import           Data.Fixed
+import qualified Data.Map.Strict  as Map
+import qualified Data.Text        as T
+import qualified Data.Text.IO     as TI
+import           Params
+import           System.IO.Unsafe
 
 psmax = -5
 psmin = -1
@@ -33,7 +33,7 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 -- day  = day' <>*> constant 0.0
 
 sunrise = 6
-sunset = 18 :: Double
+sunset = 14 :: Double
 temp' = constant 22.0
 photo' = constant (sunset - sunrise)
 light = between sunrise sunset (constant True) (constant False)
@@ -143,7 +143,7 @@ htuOpt ar psi moist temp = (moist - mpsB) * (to - tbg)
 htu t a psi
   | moistt > psb && tempt > tbg && tempt < to = htuSub ar psi moistt tempt
   | mpsB < moistt && tempt > to = htuOpt a psi moistt tempt
-  | otherwise = 0.0                                
+  | otherwise = 0.0
   where
     tempt = at temp t
     moistt = at moist t

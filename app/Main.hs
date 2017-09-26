@@ -10,11 +10,11 @@ import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
 
-outDir = "out/fmliteExps12h"
+outDir = "out/fmliteExps8h"
 
 -- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
 
-main = goPlot 50 [carbon, leafMass, starch, totalMaint] [0 .. 1000] outDir
+main = goPlot 5 [carbon, leafMass, starch, cc, growthMaint] [0 .. 2000] outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -89,7 +89,7 @@ avgTraj i tobsss =
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 1000
+    te = 2000
 
 runTT
     :: (Eq a)
