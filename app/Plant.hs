@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 756
+tend = 755
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -304,8 +304,10 @@ grD =
     , gen =
         \s ->
              let rosMass = gen leafMass $ s
-             in (1.2422 * g rosMass) +
-                (1.2422 * pr * g rosMass * (gen rsratio $ s))
+             in if (nLeaves s) > 0
+                    then (1.2422 * g rosMass) +
+                         (1.2422 * pr * g rosMass * (gen rsratio $ s))
+                    else 0.0
     }
 
 growthMaint =
@@ -323,34 +325,51 @@ cc = Observable { name = "cc",
                   gen = \s -> let cassim = gen cAssim $ s
                               in sum [c + cassim | (Cell{c=c,s=s'}, _) <- s] }
 
-totalMaint =
+grC = Observable { name = "grC",
+                   gen = \s -> let s2c = sum [sd | (EPlant{sdeg=sd}, _) <- s]
+                                   rArea = rosArea s
+                                   tMaint = gen totalMaint $ s
+                               in
+                                (gen cc $ s) + s2c  - tMaint - (0.05 * rArea) }
+
+lMaint =
     Observable
-    { name = "totalMaint"
+    { name = "totalLMaint"
     , gen =
         \s ->
-             let ra = rosArea s
-                 nl = nLeaves s
+             let nl = nLeaves s
                  iMax = maxLeaf s
-                 rm =
-                     sum
-                         [ m
-                         | (Root {m = m}, _) <- s ]
-                 rMaint =
-                     maint22 rm ra iMax (fromIntegral iMax) (fromIntegral nl)
              in if (nl > 0)
-                    then rMaint +
-                         (sum
+                    then (sum
                               [ maint22
                                    m
                                    a
                                    i
                                    (fromIntegral iMax)
                                    (fromIntegral nl)
-                              | (Leaf {i =i
+                              | (Leaf {i = i
                                       ,a = a
                                       ,m = m}, _) <- s ])
                     else 0.0
     }
+
+rMaint =
+    Observable
+    { name = "rMaint"
+    , gen =
+        \s ->
+             let lmaint = gen lMaint $ s
+                 lmass = gen leafMass $ s
+             in sum
+                    [ lmaint * (m / lmass)
+                    | (Root {m = m}, _) <- s ]
+    }
+
+totalMaint =
+    Observable
+    { name = "totalMaint"
+    , gen =
+        \s -> (gen rMaint $ s) + (gen lMaint $ s) }
 
 ----dassim (phRate temp par photo') rArea
 cAssim = Observable { name = "assim",
@@ -429,6 +448,12 @@ emerg d
   | d > 110 = 1.0
   | otherwise = 0.0
 
+gCap :: Double -> Double -> Double -> Double
+gCap tdem grc lm =
+    if tdem < grc
+        then (g lm)
+        else (grc / tdem) * (g lm)
+
 $(return [])
 
 
@@ -451,10 +476,11 @@ growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @1.0 [c-grRes > cEqui]
+      @1.0 [c-grRes > 0.0]
         where
           ld = ldem i ta tt,
-          gr = (g leafMass) * (ld / tLDem),
+          gAvail = gCap grD grC leafMass,
+          gr = gAvail * (ld / tLDem),
           a' = (sla' tt) * (m + (c2m gr)),
           grRes = 1.2422 * gr,
           cEqui = 0.05 * rArea
@@ -478,8 +504,7 @@ starchConv =
 starchFlow =
     [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0 && day]
           where
-            tgr = g leafMass + (g leafMass * rsratio),
-            extra = max 0.0 (c + cAssim - totalMaint - tgr) |]
+            extra = max 0.0 (grC - grD) |]
 
 leafCr =
     [rule|
@@ -499,9 +524,10 @@ rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
     EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
-    @1.0 [c-rg > cEqui]
+    @1.0 [c - rgRes > 0.0]
       where
-        rg = (pr*g leafMass * rsratio),
+        gAvail = gCap grD grC leafMass,
+        rg = (pr*gAvail * rsratio),
         rgRes = 1.2422 * rg,
         cEqui = 0.05 * rArea
   |]
@@ -512,8 +538,9 @@ rootMaint =
     Root{m=m}, Cell{c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
-        rm = maint m rArea (floor maxL) maxL nL temp
+        rm = rMaint
   |]
+-- rm = maint m rArea (floor maxL) maxL nL temp
 
 leafTransl =
   [rule|
@@ -540,7 +567,7 @@ devp =
          Plant{thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
 
 devep =
-  [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
+    [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
          Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
 
 eme =
