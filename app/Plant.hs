@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 1300
+tend = 756
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -182,7 +182,7 @@ calcSDeg s tt
   where
     h = mod' tt 24.0
 
-close tt sset = abs (tt - sset) < 2
+close tt sset = abs (tt - sset) < 1
 
 updSDeg s sdeg tt
   | close h sunset = (s * kStarch) / (24 - (sunset - sunrise))
@@ -298,13 +298,26 @@ tRDem =
 rsratio = Observable { name = "rsratio",
                        gen = \s -> (gen tRDem $ s) / (gen tLDem $ s) * 2.7192 }
 
+grD =
+    Observable
+    { name = "grD"
+    , gen =
+        \s ->
+             let rosMass = gen leafMass $ s
+             in (1.2422 * g rosMass) +
+                (1.2422 * pr * g rosMass * (gen rsratio $ s))
+    }
 
-grD = Observable { name = "grD",
-                   gen = \s -> let rosMass = gen leafMass $ s
-                               in g rosMass + (g rosMass * (gen rsratio $ s)) }
+growthMaint =
+    Observable
+    { name = "growthMaint"
+    , gen =
+        \s ->
+             if (nLeaves s) > 0
+                 then (gen grD $ s) + (gen totalMaint $ s)
+                 else 0.0
+    }
 
-growthMaint = Observable { name = "growthMaint",
-                           gen = \s -> (gen grD $ s) + (gen totalMaint $ s) }
 
 cc = Observable { name = "cc",
                   gen = \s -> let cassim = gen cAssim $ s
@@ -341,7 +354,7 @@ totalMaint =
 
 ----dassim (phRate temp par photo') rArea
 cAssim = Observable { name = "assim",
-                      gen = \s -> let phR = phRate 22.0 120.0 8
+                      gen = \s -> let phR = phRate 22.0 120.0 12
                                       rArea = rosArea s
                                   in
                                    0.875*(dassim phR rArea) }
@@ -443,7 +456,7 @@ growth =
           ld = ldem i ta tt,
           gr = (g leafMass) * (ld / tLDem),
           a' = (sla' tt) * (m + (c2m gr)),
-          grRes = 1.24 * gr,
+          grRes = 1.2422 * gr,
           cEqui = 0.05 * rArea
     |]
 
@@ -485,10 +498,11 @@ maintRes =
 rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
-    EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rg, s=s'}
+    EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
     @1.0 [c-rg > cEqui]
       where
         rg = (pr*g leafMass * rsratio),
+        rgRes = 1.2422 * rg,
         cEqui = 0.05 * rArea
   |]
 
@@ -597,9 +611,7 @@ md =
 mdLite =
     Model
     { rules =
-        [ dev
-        , trans
-        , growth
+        [ growth
         , assim
         , leafCr
         , starchConv
