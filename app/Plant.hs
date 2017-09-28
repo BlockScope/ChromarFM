@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 755
+tend = 756
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -306,7 +306,7 @@ grD =
              let rosMass = gen leafMass $ s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
-                         (1.2422 * pr * g rosMass * (gen rsratio $ s))
+                         (1.2422 * pr * g rosMass * (gen rsratio s))
                     else 0.0
     }
 
@@ -330,7 +330,7 @@ grC = Observable { name = "grC",
                                    rArea = rosArea s
                                    tMaint = gen totalMaint $ s
                                in
-                                (gen cc $ s) + s2c  - tMaint - (0.05 * rArea) }
+                                (gen cc s) + s2c  - tMaint - (0.05 * rArea) }
 
 lMaint =
     Observable
@@ -358,18 +358,18 @@ rMaint =
     { name = "rMaint"
     , gen =
         \s ->
-             let lmaint = gen lMaint $ s
-                 lmass = gen leafMass $ s
+             let lmaint = gen lMaint s
+                 lmass = gen leafMass s
              in sum
-                    [ lmaint * (m / lmass)
-                    | (Root {m = m}, _) <- s ]
+                    [ lmaint * (rm / lmass)
+                    | (Root {m = rm}, _) <- s ]
     }
 
 totalMaint =
     Observable
     { name = "totalMaint"
     , gen =
-        \s -> (gen rMaint $ s) + (gen lMaint $ s) }
+        \s -> (gen rMaint s) + (gen lMaint s) }
 
 ----dassim (phRate temp par photo') rArea
 cAssim = Observable { name = "assim",
@@ -540,7 +540,6 @@ rootMaint =
       where
         rm = rMaint
   |]
--- rm = maint m rArea (floor maxL) maxL nL temp
 
 leafTransl =
   [rule|
@@ -564,11 +563,16 @@ rootTransl =
 
 devp =
   [rule| Plant{thrt=tt, dg=d, wct=w} -->
-         Plant{thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
+         Plant{thrt=tt+(temp / 24.0),
+               dg=d+ptu* fp (wcUpd time w),
+               wct=wcUpd time w}
+         @1.0 |]
 
 devep =
     [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
-         Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0), dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w} @1.0 |]
+           Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0),
+                              dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w}
+           @1.0 |]
 
 eme =
   [rule| Plant{thrt=tt, attr=ar, dg=d, wct=w} -->
@@ -592,8 +596,10 @@ leafD' =
 
 transp =
     [rule|
-        System{flowerTimes=fts, rosMass=rms}, EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
-        System{flowerTimes=(getMonth time:fts), rosMass=(leafMass:rms)}, FPlant{attr=atr, dg=0.0}
+        System{flowerTimes=fts, rosMass=rms},
+        EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
+        System{flowerTimes=(getMonth time:fts), rosMass=(leafMass:rms)},
+        FPlant{attr=atr, dg=0.0}
         @logf' d
     |]
 
@@ -603,7 +609,8 @@ devfp =
 transfp =
     [rule|
          System{ssTimes=ss}, FPlant{attr=atr, dg=d} -->
-         System{ssTimes=(getMonth time:ss)}, Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
+         System{ssTimes=(getMonth time:ss)},
+         Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
          @logs' d
    |]
 
@@ -722,3 +729,6 @@ sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
+
+
+
