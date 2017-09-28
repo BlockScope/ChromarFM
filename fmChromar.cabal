@@ -24,5 +24,6 @@ executable fm
                      multiset >= 0.3,
                      colour >= 2.3,
                      lens >= 4.0,
-                     data-default-class      
+                     data-default-class,
+                     time
   default-language:    Haskell2010

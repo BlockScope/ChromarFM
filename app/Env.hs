@@ -1,66 +1,53 @@
 module Env where
 
-import Data.Fixed
-import Chromar.Fluent
-import Params
+import           Chromar.Fluent
+import           Data.Fixed
+import qualified Data.Map.Strict  as Map
+import qualified Data.Text        as T
+import qualified Data.Text.IO     as TI
+import           Params
+import           System.IO.Unsafe
+
+psmax = -5
+psmin = -1
+psu = -50
+psl = -350
+psSc = 1.0
+tbar = 3.0
+tbg = 3.0
+tbd = 3.0
+kt = 0.12
+to = 22
 
 fi = 0.5257
+--fi = 0.737
 fu = 0
 
+dataFile = "data/rad/weatherValencia2yrsRad.csv"
+
+-- temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
+-- photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
+-- day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
+-- moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
+-- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
+-- day  = day' <>*> constant 0.0
+
 sunrise = 6
-sunset = 18
-
-dayTemp = 22.0 :: Double
-nightTemp = 22.0 :: Double
-baseTemp = 3.0 :: Double
-
-dayTemp' = dayTemp - baseTemp
-nightTemp' = nightTemp - baseTemp
-
-photo' = constant 12
-d = 12.0
-
+sunset = 18 :: Double
+temp' = constant 22.0
+photo' = constant (sunset - sunrise)
 light = between sunrise sunset (constant True) (constant False)
 day = repeatEvery 24 light
+moist = constant 1.1
+par = constant 120.0
 
-par = 120.0
-
-lightFr t
-    | td <= sunrise || td >= sunset + 1 = 0
-    | td >= sunrise + 1 && td < sunset = 1
-    | td <= sunrise + 1 = td - sunrise
-    | otherwise = sunset - td + 1
-  where
-    td = mod' t 24
-
-thrm t
-    | lightFr t == 0 = pN * (max nightTemp' 0)
-    | lightFr t == 1 = (max dayTemp' 0)
-    | otherwise =
-        max 0 (tempt * lightFr t) + pN * (max 0 tempt * (1 - lightFr t))
-  where
-    tempt = at temp t
-
-thermal = mkFluent thrm
-
-temp = when day (constant dayTemp') `orElse` (constant nightTemp')
-
-calcCTemp :: Time -> Double
-calcCTemp t = ((dayHours * dayTemp') + (nightHours * nightTemp') + todayThr) / 24.0
-  where
-    tr = round t :: Int
-    (days, hours) = quotRem tr 24
-    dayHours = fromIntegral $ days * 12
-    nightHours = fromIntegral $ days * 12
-    todayThr = sum [at temp (fromIntegral h) | h <- [1 .. hours]]
-
-thr = mkFluent calcCTemp
+tempBase = constant 3.0
+temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
 
 co2 = 42.0
 
 
-
------
+--------- plant dev -----
 idev = (*)
        <$> constant 0.3985
        <*> (photo' <-*> constant 10.0)
@@ -75,7 +62,26 @@ pperiod =
   when (photo' <<*> constant 10.0) (constant 0.6015) `orElse`
   (when (photo' <<*> constant 14.0) idev'' `orElse` constant 1.0)
 
---thermal = when day (constant dayTemp') `orElse` constant 0.0
+lightFr t
+  | td <= sunrise || td >= sunset + 1 = 0
+  | td >= sunrise + 1 && td < sunset = 1
+  | td <= sunrise + 1 = td - sunrise
+  | otherwise = sunset - td + 1
+  where
+    td = mod' t 24
+
+thrm t
+    | lightFr t == 0 = pN * (max tempt 0)
+    | lightFr t == 1 = (max tempt 0)
+    | otherwise =
+        max 0 (tempt * lightFr t) + pN * (max 0 tempt * (1 - lightFr t))
+  where
+    tempt = at temp t
+
+thermal = mkFluent thrm
+
+---thermal = when day temp `orElse` constant 0.0
+
 ptu = (*) <$> thermal <*> pperiod
 
 tmin = -3.5
@@ -107,3 +113,64 @@ fp wc =
     fp1 = 1 - fi + (fi - fu) * wcRat
     fp2 = 1 - fu
 
+
+--------seed dev --------------
+
+arUpd moist temp
+  | moist <= psmax && moist >= psu = temp - tbar
+  | moist < psu && moist > psl = ((psl - moist) / (psl - psu)) * (temp - tbar)
+  | moist <= psmax || moist <= psl = 0.0
+  | otherwise = 0.0
+
+psB ar psi =
+  if psb' > psmin
+     then psb'
+     else psmin
+  where
+    arlab = arUpd (-200) 20
+    dsat = 40
+    psb' = psi - psSc * (ar / (arlab * dsat * 24) )
+
+htuSub ar psi moist temp = (moist - psB ar psi) * (temp - tbg)
+
+htuOpt ar psi moist temp = (moist - mpsB) * (to - tbg)
+  where
+    mpsB = psB ar psi + kt * (temp - to)
+
+---t : time
+--- a : afterripening
+--- psi : initial dorm
+htu t a psi
+  | moistt > psb && tempt > tbg && tempt < to = htuSub ar psi moistt tempt
+  | mpsB < moistt && tempt > to = htuOpt a psi moistt tempt
+  | otherwise = 0.0
+  where
+    tempt = at temp t
+    moistt = at moist t
+    ar = a + arUpd moistt tempt
+    psb = psB ar psi
+    mpsB = psB ar psi + kt * (tempt-to)
+
+
+---- infloresence dev -----
+disp = when (ntemp <>*> constant 0.0) ntemp `orElse` constant 0.0
+  where
+    ntemp = temp <-*> constant tbd
+
+
+
+--------------
+parseLine :: Int -> T.Text -> (Double, Double)
+parseLine n ln = (read $ T.unpack time, read $ T.unpack temp) where
+  elems = T.splitOn (T.pack " ") ln
+  time = elems !! 0
+  temp = elems !! n
+
+
+readTable :: FilePath -> Int -> IO (Fluent Double)
+readTable fn n = do
+  contents <- TI.readFile fn
+  let vals = map (parseLine n) (T.lines contents)
+  return $ flookupM (Map.fromList vals)
+
+------

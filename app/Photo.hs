@@ -37,7 +37,7 @@ jv d
     | d == 18 = 1.2
     | otherwise = 1.0            
 
-phRate tempt =
+phRate tempt tpar pp =
     if rho <= 0
         then avRub
         else min avRub ajRub
@@ -53,8 +53,8 @@ phRate tempt =
     t1 = exp ((aEnergyJm25 * (tempt - 25)) / (298 * r * (tempt + 273)))
     t2 = 1 + exp ((sElec * 298 - hCurv) / (r * 298))
     t3 = 1 + exp ((sElec * (273 + tempt) - hCurv) / (r * (273.0 + tempt)))
-    jmPot = (jv d) * vlMax25 * t1 * t2 / t3
-    ilePar = par * (1 - fspec) / 2.0
+    jmPot = (jv pp) * vlMax25 * t1 * t2 / t3
+    ilePar = tpar * (1 - fspec) / 2.0
     bb = -1 * (ilePar + jmPot)
     cc = ilePar * jmPot
     rho = bb ** 2 - 4 * thCurv * cc
