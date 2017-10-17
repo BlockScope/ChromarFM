@@ -1,6 +1,6 @@
 module Photo where
 
-import Env
+import           Env
 
 r = 8.314 :: Double
 
@@ -35,7 +35,7 @@ jv d
     | d == 12 = 1.7
     | d == 14 = 1.4
     | d == 18 = 1.2
-    | otherwise = 1.0            
+    | otherwise = 1.0
 
 phRate tempt tpar pp =
     if rho <= 0
@@ -63,3 +63,5 @@ phRate tempt tpar pp =
             then 0
             else (-1 * bb - rho ** 0.5) / (2 * thCurv)
     ajRub = (sol * (intCo2 - co2CompPoint)) / (4 * (intCo2 + 2 * co2CompPoint))
+
+phRate' = 6.2564
