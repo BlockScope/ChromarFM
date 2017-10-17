@@ -96,7 +96,7 @@ lastThr =
 
 rateApp lta pc thrt =
     if thrt - lta > pc
-        then 1.0 -- / 24.0
+        then 1.0
         else 0.0
 
 nLeaves :: Multiset Agent -> Int
@@ -296,7 +296,7 @@ tRDem =
 
 
 rsratio = Observable { name = "rsratio",
-                       gen = \s -> (gen tRDem $ s) / (gen tLDem $ s) * 2.7192 }
+                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.7192 }
 
 grD =
     Observable
@@ -306,7 +306,7 @@ grD =
              let rosMass = gen leafMass $ s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
-                         (1.2422 * pr * g rosMass * (gen rsratio s))
+                         (1.2422 * g rosMass * (gen rsratio s))
                     else 0.0
     }
 
@@ -316,10 +316,9 @@ growthMaint =
     , gen =
         \s ->
              if (nLeaves s) > 0
-                 then (gen grD $ s) + (gen totalMaint $ s)
+                 then (gen grD s) + (gen totalMaint s)
                  else 0.0
     }
-
 
 cc = Observable { name = "cc",
                   gen = \s -> let cassim = gen cAssim $ s
@@ -328,7 +327,7 @@ cc = Observable { name = "cc",
 grC = Observable { name = "grC",
                    gen = \s -> let s2c = sum [sd | (EPlant{sdeg=sd}, _) <- s]
                                    rArea = rosArea s
-                                   tMaint = gen totalMaint $ s
+                                   tMaint = gen totalMaint s
                                in
                                 (gen cc s) + s2c  - tMaint - (0.05 * rArea) }
 
@@ -361,7 +360,7 @@ rMaint =
              let lmaint = gen lMaint s
                  lmass = gen leafMass s
              in sum
-                    [ lmaint * (rm / lmass)
+                    [ lmaint * (rm2c rm / m2c lmass)
                     | (Root {m = rm}, _) <- s ]
     }
 
@@ -476,14 +475,13 @@ growth =
     [rule|
       EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
       EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
-      @1.0 [c-grRes > 0.0]
+      @10*ld [c-grRes > cEqui]
         where
           ld = ldem i ta tt,
-          gAvail = gCap grD grC leafMass,
-          gr = gAvail * (ld / tLDem),
+          cEqui = 0.05 * rArea,
+          gr = (g leafMass) / 10,
           a' = (sla' tt) * (m + (c2m gr)),
-          grRes = 1.2422 * gr,
-          cEqui = 0.05 * rArea
+          grRes = 1.2422 * gr
     |]
 
 assim =
@@ -502,7 +500,7 @@ starchConv =
   |]
 
 starchFlow =
-    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0 && day]
+    [rule| Cell{c=c, s=s'} --> Cell{c=c-1, s=s'+1} @c [c - 1 > 0.0 && day]
           where
             extra = max 0.0 (grC - grD) |]
 
@@ -524,12 +522,11 @@ rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
     EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
-    @1.0 [c - rgRes > 0.0]
+    @10*(rdem tt) [c - rgRes > cEqui]
       where
-        gAvail = gCap grD grC leafMass,
-        rg = (pr*gAvail * rsratio),
-        rgRes = 1.2422 * rg,
-        cEqui = 0.05 * rArea
+        cEqui = 0.05 * rArea,
+        rg = (pr * g leafMass) / 10.0,
+        rgRes = 1.2422 * rg
   |]
 
 rootMaint =
@@ -538,7 +535,7 @@ rootMaint =
     Root{m=m}, Cell{c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
-        rm = rMaint
+        rm = maint m rArea (floor maxL) maxL nL temp
   |]
 
 leafTransl =
@@ -692,7 +689,6 @@ seedD = Observable { name = "seedD",
 thrtt = Observable { name = "thrtt",
                      gen = sumM thrt . select isEPlant }
 
-
 avgGermMonth = Observable { name = "avgGermM",
                             gen = avgGerm }
   where
@@ -729,3 +725,5 @@ sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
+
+
