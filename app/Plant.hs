@@ -500,7 +500,7 @@ starchConv =
   |]
 
 starchFlow =
-    [rule| Cell{c=c, s=s'} --> Cell{c=c-1, s=s'+1} @c [c - 1 > 0.0 && day]
+    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0 && day]
           where
             extra = max 0.0 (grC - grD) |]
 
@@ -535,7 +535,7 @@ rootMaint =
     Root{m=m}, Cell{c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
-        rm = maint m rArea (floor maxL) maxL nL temp
+        rm = maint m (m/leafMass*rArea) (floor maxL) maxL nL temp
   |]
 
 leafTransl =
