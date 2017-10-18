@@ -247,6 +247,14 @@ maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
     rl20 = (p * c + p') * 24
     rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
+maintRos m a tempt = rlRes * a * (1 / 24.0)
+  where
+    p = 0.085
+    p' = 0.016
+    c = m2c m
+    rl20 = (p * c + p') * 24
+    rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
+
 maint22 :: Double -> Double -> Int -> Obs -> Obs -> Double
 maint22 m a i iMax nl = rlRes * leafArea * (1 / 24.0)
   where
@@ -492,7 +500,7 @@ assim =
       where
         da = dassim (phRate temp par photo') rArea
   |]
-
+-- (phRate temp par photo')
 starchConv =
   [rule|
     EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
@@ -535,7 +543,7 @@ rootMaint =
     Root{m=m}, Cell{c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
-        rm = maint m (m/leafMass*rArea) (floor maxL) maxL nL temp
+        rm = (rm2c m)/(m2c leafMass) * (maintRos leafMass rArea temp)
   |]
 
 leafTransl =
@@ -580,7 +588,7 @@ eme =
           Cell{ c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
-              fR = rdem 100,
+              fR = rdem tt,
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
