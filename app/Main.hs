@@ -12,9 +12,23 @@ import qualified System.Random                          as R
 
 outDir = "out/fmliteExps12h"
 
--- main = runUntil mdLite hasFlowered "out/out.txt" [starch, leafMass]
-
-main = goPlot 10 [carbon, leafMass, starch, cc, grC, grD, rootMass] [0 .. 800] outDir
+main =
+    goPlot
+        10
+        [ carbon
+        , leafMass
+        , starch
+        , cc
+        , grC
+        , grD
+        , rootMass
+        , leaf1Mass
+        , leaf5Mass
+        , leaf10Mass
+        , leaf12Mass
+        ]
+        [0 .. 800]
+        outDir
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
