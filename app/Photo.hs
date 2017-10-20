@@ -65,3 +65,7 @@ phRate tempt tpar pp =
     ajRub = (sol * (intCo2 - co2CompPoint)) / (4 * (intCo2 + 2 * co2CompPoint))
 
 phRate' = 6.2564
+
+phRate12 = 5.614
+
+phRate18 = 4.491
