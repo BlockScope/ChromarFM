@@ -70,12 +70,6 @@ eplantD = Observable { name = "plantD",
 plantTa = Observable { name = "plantTa",
                        gen = sumM ta . select isEPlant }
 
--- pCron :: Fluent Double
--- pCron = when (thr <>*> (constant 465)) adPCron `orElse` juvPCron
---   where
---     juvPCron = constant 30.3
---     adPCron = constant 11.9
-
 pCron' :: Double -> Double
 pCron' dthr
     | dthr > 465 = adPCron
@@ -190,13 +184,6 @@ updSDeg s sdeg tt
   where
     h = mod' tt 24.0
 
--- sla =
---     (*) <$> constant slaCot <*>
---     (exp <$> ((*) <$> constant slaExp <*> (thr <-*> constant 100)))
---   where
---     slaCot = 0.144
---     slaExp = -0.002
-
 sla' thr = slaCot * exp (slaExp*thr)
   where
     slaCot = 0.144
@@ -304,7 +291,7 @@ tRDem =
 
 
 rsratio = Observable { name = "rsratio",
-                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.7192 }
+                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.7192 * 1.03}
 
 grD =
     Observable
@@ -330,14 +317,14 @@ growthMaint =
 
 cc = Observable { name = "cc",
                   gen = \s -> let cassim = gen cAssim $ s
-                              in sum [c + cassim | (Cell{c=c,s=s'}, _) <- s] }
+                              in sum [c | (Cell{c=c,s=s'}, _) <- s] }
 
 grC = Observable { name = "grC",
                    gen = \s -> let s2c = sum [sd | (EPlant{sdeg=sd}, _) <- s]
                                    rArea = rosArea s
                                    tMaint = gen totalMaint s
                                in
-                                (gen cc s) + s2c  - tMaint - (0.05 * rArea) }
+                                (gen cc s) - tMaint - (0.05 * rArea) }
 
 lMaint =
     Observable
@@ -365,10 +352,11 @@ rMaint =
     { name = "rMaint"
     , gen =
         \s ->
-             let lmaint = gen lMaint s
-                 lmass = gen leafMass s
+             let lmass = gen leafMass s
+                 larea = rosArea s
+                 rosMaint = maintRos lmass larea 22
              in sum
-                    [ lmaint * (rm2c rm / m2c lmass)
+                    [ rosMaint * (rm2c rm / m2c lmass)
                     | (Root {m = rm}, _) <- s ]
     }
 
@@ -410,6 +398,18 @@ mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
+
+leaf1Mass = Observable { name = "mass1",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 1] }
+
+leaf5Mass = Observable { name = "mass5",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 5] }
+
+leaf10Mass = Observable { name = "mass10",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 10] }
+
+leaf12Mass = Observable { name = "mass12",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
 
 data Attrs = Attrs
   { ind :: Int
@@ -500,7 +500,9 @@ assim =
       where
         da = dassim (phRate temp par photo') rArea
   |]
--- (phRate temp par photo')
+
+--- (phRate temp par photo')
+
 starchConv =
   [rule|
     EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
