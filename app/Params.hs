@@ -13,5 +13,6 @@ rc = 0.195 :: Double
 rootLc = 1.3 :: Double
 seedInput = 1.6e-5 :: Double
 pr = 2.64:: Double
+pl = 1.0 :: Double
 rootFactor = 0.35 :: Double
 pN = 0.1782 :: Double
