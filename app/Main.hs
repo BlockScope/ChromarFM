@@ -1,3 +1,5 @@
+{-# LANGUAGE TransformListComp #-}
+
 import           Chromar
 import           Control.Lens                           hiding (at)
 import           Control.Monad
@@ -5,12 +7,13 @@ import           Data.Colour
 import           Data.Colour.Names
 import           Data.Default.Class
 import           Data.List
+import           GHC.Exts                               (groupWith, the)
 import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
 
-outDir = "out/fmliteExps12h"
+outDir = "out/fmliteExps8h"
 
 main =
     goPlot
@@ -27,7 +30,7 @@ main =
         , leaf10Mass
         , leaf12Mass
         ]
-        [0 .. 800]
+        [0 .. 1300]
         outDir
 
 goPlot nreps obss tss outDir = do
@@ -98,12 +101,15 @@ avgT :: Time -> [Fluent Obs] -> Obs
 avgT t fs = avg [at f t | f <- fs]
 
 avgTraj i tobsss =
-    [ (fromIntegral t, avgT (fromIntegral t) fluents)
+    [ (t, avgT t fluents)
     | t <- [1 .. te] ]
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 800
+    te = 1300
+
+avgHour tobss = [(fromIntegral (the (map floor t)), avg obs) | (t, obs) <- tobss,
+                 then group by (floor t) using groupWith]
 
 runTT
     :: (Eq a)
