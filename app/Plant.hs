@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 756
+tend = 1300
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -291,7 +291,7 @@ tRDem =
 
 
 rsratio = Observable { name = "rsratio",
-                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.7192 * 1.03}
+                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.64 * 1.03}
 
 grD =
     Observable
@@ -305,23 +305,12 @@ grD =
                     else 0.0
     }
 
-growthMaint =
-    Observable
-    { name = "growthMaint"
-    , gen =
-        \s ->
-             if (nLeaves s) > 0
-                 then (gen grD s) + (gen totalMaint s)
-                 else 0.0
-    }
-
 cc = Observable { name = "cc",
                   gen = \s -> let cassim = gen cAssim $ s
-                              in sum [c | (Cell{c=c,s=s'}, _) <- s] }
+                              in sum [c | (Cell{c=c,s=s'}, _) <- s] + cassim }
 
 grC = Observable { name = "grC",
-                   gen = \s -> let s2c = sum [sd | (EPlant{sdeg=sd}, _) <- s]
-                                   rArea = rosArea s
+                   gen = \s -> let rArea = rosArea s
                                    tMaint = gen totalMaint s
                                in
                                 (gen cc s) - tMaint - (0.05 * rArea) }
@@ -368,7 +357,7 @@ totalMaint =
 
 ----dassim (phRate temp par photo') rArea
 cAssim = Observable { name = "assim",
-                      gen = \s -> let phR = phRate 22.0 120.0 12
+                      gen = \s -> let phR = phRate' -- 22.0 120.0 8
                                       rArea = rosArea s
                                   in
                                    0.875*(dassim phR rArea) }
@@ -498,7 +487,7 @@ assim =
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
-        da = dassim (phRate temp par photo') rArea
+        da = dassim phRate' rArea
   |]
 
 --- (phRate temp par photo')
@@ -510,9 +499,9 @@ starchConv =
   |]
 
 starchFlow =
-    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @1.0 [c - extra > 0.0 && day]
+    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @10.0 [c - extra > 0.0 && day]
           where
-            extra = max 0.0 (grC - grD) |]
+            extra = (max 0.0 (grC - grD)) / 10.0 |]
 
 leafCr =
     [rule|
@@ -527,6 +516,13 @@ maintRes =
     @1.0 [c-lmaint > 0]
       where
         lmaint = maint m a i maxL nL temp |]
+
+maintRes' =
+  [rule|
+   Cell{c=c, s=s'} -->
+   Cell{c=c-lmaint} @1.0 [c-lmaint > 0]
+     where
+       lmaint = maintRos leafMass rArea temp |]
 
 rootGrowth =
   [rule|
