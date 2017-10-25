@@ -15,7 +15,9 @@ import qualified System.Random                          as R
 
 outDir = "out/fmliteExps12h"
 
-main =
+main = mainDistr
+
+mainLite =
     goPlot
         10
         [ carbon
@@ -143,7 +145,7 @@ avgLastTime tobss = avg $ map (fst . last) tobss
 mainDistr :: IO ()
 mainDistr = do
     gen <- R.getStdGen
-    let tend = (365 * 60 * 24)
+    let tend = (365 * 5 * 24)
     let traj =
             takeWhile
                 (\s -> getT s < tend)
