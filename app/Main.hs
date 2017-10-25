@@ -17,12 +17,10 @@ outDir = "out/fmliteExps12h"
 
 main =
     goPlot
-        50
+        10
         [ carbon
         , leafMass
         , starch
-        , grC
-        , grD
         , rootMass
         , leaf1Mass
         , leaf5Mass

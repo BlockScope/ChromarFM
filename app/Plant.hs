@@ -242,19 +242,6 @@ maintRos m a tempt = rlRes * a * (1 / 24.0)
     rl20 = (p * c + p') * 24
     rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
-maint22 :: Double -> Double -> Int -> Obs -> Obs -> Double
-maint22 m a i iMax nl = rlRes * leafArea * (1 / 24.0)
-  where
-    tempt = 22.0 :: Double
-    p = 0.085
-    p' = 0.016
-    c = m2c m
-    toRad d = d / 180 * pi
-    ang = toRad $ getAngle i (floor iMax) (floor nl)
-    leafArea = a * (cos ang)
-    rl20 = (p * c + p') * 24
-    rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
-
 -- growth in grams of mass for a leaf with mass m
 g m = gmax * (1/24.0)
   where
@@ -305,66 +292,51 @@ grD =
                     else 0.0
     }
 
-cc = Observable { name = "cc",
-                  gen = \s -> let cassim = gen cAssim s
-                              in sum [c | (Cell{c=c,s=s'}, _) <- s] + cassim }
+cc s t =
+    let cassim = cAssim s t
+    in sum
+           [ c
+           | (Cell {c = c
+                   ,s = s'}, _) <- s ] +
+       cassim
 
-grC = Observable { name = "grC",
-                   gen = \s -> let rArea = rosArea s
-                                   tMaint = gen totalMaint s
-                               in
-                                (gen cc s) - tMaint - (0.05 * rArea) }
+grC s t =
+    let rArea = rosArea s
+        tMaint = totalMaint s t
+    in (cc s t) - tMaint - (0.05 * rArea)
 
-lMaint =
-    Observable
-    { name = "totalLMaint"
-    , gen =
-        \s ->
-             let nl = nLeaves s
-                 iMax = maxLeaf s
-             in if (nl > 0)
-                    then (sum
-                              [ maint22
-                                   m
-                                   a
-                                   i
-                                   (fromIntegral iMax)
-                                   (fromIntegral nl)
-                              | (Leaf {i = i
-                                      ,a = a
-                                      ,m = m}, _) <- s ])
-                    else 0.0
-    }
+lMaint s t =
+    let nl = nLeaves s
+        iMax = maxLeaf s
+    in if (nl > 0)
+           then (sum
+                     [ maint
+                          m
+                          a
+                          i
+                          (fromIntegral iMax)
+                          (fromIntegral nl)
+                          (at temp t)
+                     | (Leaf {i = i
+                             ,a = a
+                             ,m = m}, _) <- s ])
+           else 0.0
 
-rMaint =
-    Observable
-    { name = "rMaint"
-    , gen =
-        \s ->
-             let lmass = gen leafMass s
-                 larea = rosArea s
-                 rosMaint = maintRos lmass larea 22.0
-             in sum
-                    [ rosMaint * (rm2c rm / m2c lmass)
-                    | (Root {m = rm}, _) <- s ]
-    }
+rMaint s t =
+    let lmass = gen leafMass s
+        larea = rosArea s
+        rosMaint = maintRos lmass larea (at temp t)
+    in sum
+           [ rosMaint * (rm2c rm / m2c lmass)
+           | (Root {m = rm}, _) <- s ]
 
-totalMaint =
-    Observable
-    { name = "totalMaint"
-    , gen =
-        \s -> (gen rMaint s) + (gen lMaint s) }
+totalMaint s t = rMaint s t + lMaint s t
 
 ----dassim (phRate temp par photo') rArea
-cAssim =
-    Observable
-    { name = "assim"
-    , gen =
-        \s ->
-             let phR = phRate' -- 22.0 120.0 14
-                 rArea = rosArea s
-             in 0.875 * (dassim phR rArea)
-    }
+cAssim s t =
+    let phR = phRate12 -- 22.0 120.0 14
+        rArea = rosArea s
+    in 0.875 * (dassim phR rArea)
 
 mkSt :: Multiset Agent
 mkSt =
@@ -448,15 +420,7 @@ emerg d
   | d > 110 = 1.0
   | otherwise = 0.0
 
-gCap :: Double -> Double -> Double -> Double
-gCap tdem grc lm =
-    if tdem < grc
-        then (g lm)
-        else (grc / tdem) * (g lm)
-
 $(return [])
-
-
 ----- rules -------
 
 dev =
@@ -491,7 +455,7 @@ assim =
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
-        da = dassim phRate' rArea
+        da = dassim phRate12 rArea
   |]
 
 --- (phRate temp par photo')
@@ -505,7 +469,7 @@ starchConv =
 starchFlow =
     [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @10.0 [c - extra > 0.0 && day]
           where
-            extra = (max 0.0 (grC - grD)) / 10.0 |]
+            extra = (max 0.0 (grC s t - grD)) / 10.0 |]
 
 leafCr =
     [rule|
