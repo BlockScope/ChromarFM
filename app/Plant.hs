@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 1300
+tend = 756
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -298,7 +298,7 @@ grD =
     { name = "grD"
     , gen =
         \s ->
-             let rosMass = gen leafMass $ s
+             let rosMass = gen leafMass s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
                          (1.2422 * g rosMass * (gen rsratio s))
@@ -306,7 +306,7 @@ grD =
     }
 
 cc = Observable { name = "cc",
-                  gen = \s -> let cassim = gen cAssim $ s
+                  gen = \s -> let cassim = gen cAssim s
                               in sum [c | (Cell{c=c,s=s'}, _) <- s] + cassim }
 
 grC = Observable { name = "grC",
@@ -343,7 +343,7 @@ rMaint =
         \s ->
              let lmass = gen leafMass s
                  larea = rosArea s
-                 rosMaint = maintRos lmass larea 22
+                 rosMaint = maintRos lmass larea 22.0
              in sum
                     [ rosMaint * (rm2c rm / m2c lmass)
                     | (Root {m = rm}, _) <- s ]
@@ -356,11 +356,15 @@ totalMaint =
         \s -> (gen rMaint s) + (gen lMaint s) }
 
 ----dassim (phRate temp par photo') rArea
-cAssim = Observable { name = "assim",
-                      gen = \s -> let phR = phRate' -- 22.0 120.0 8
-                                      rArea = rosArea s
-                                  in
-                                   0.875*(dassim phR rArea) }
+cAssim =
+    Observable
+    { name = "assim"
+    , gen =
+        \s ->
+             let phR = phRate' -- 22.0 120.0 14
+                 rArea = rosArea s
+             in 0.875 * (dassim phR rArea)
+    }
 
 mkSt :: Multiset Agent
 mkSt =

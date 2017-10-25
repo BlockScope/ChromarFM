@@ -46,7 +46,6 @@ temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
 
 co2 = 42.0
 
-
 --------- plant dev -----
 idev = (*)
        <$> constant 0.3985

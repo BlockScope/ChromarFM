@@ -68,4 +68,6 @@ phRate' = 6.2564
 
 phRate12 = 5.614
 
+phRate14 = 4.9855
+
 phRate18 = 4.491

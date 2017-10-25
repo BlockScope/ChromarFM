@@ -13,15 +13,14 @@ import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
 
-outDir = "out/fmliteExps8h"
+outDir = "out/fmliteExps12h"
 
 main =
     goPlot
-        10
+        50
         [ carbon
         , leafMass
         , starch
-        , cc
         , grC
         , grD
         , rootMass
@@ -29,8 +28,9 @@ main =
         , leaf5Mass
         , leaf10Mass
         , leaf12Mass
+        , nL
         ]
-        [0 .. 1300]
+        [0 .. 800]
         outDir
 
 goPlot nreps obss tss outDir = do
@@ -106,7 +106,7 @@ avgTraj i tobsss =
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 1300
+    te = 800
 
 avgHour tobss = [(fromIntegral (the (map floor t)), avg obs) | (t, obs) <- tobss,
                  then group by (floor t) using groupWith]
