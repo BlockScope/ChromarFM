@@ -21,7 +21,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 756
+tend = 1500
 
 thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -165,24 +165,13 @@ dassim phR ra = phR * ra * gc
   where
     gc = 86400 * 10**(-6)*12 * (1/24.0)
 
-calcSDeg :: Double -> Double -> Double
-calcSDeg s tt
-    | h < sunrise =
-        s / (kStarch * ((sunrise - h) / (sunrise + 24 - sunset)) + 1 - kStarch)
-    | h > sunset =
-        s /
-        (kStarch * ((24 - h + sunrise) / (24 - sunset + sunrise)) + 1 - kStarch)
-    | otherwise = 0.0
-  where
-    h = mod' tt 24.0
+calcSDeg a b = 0.0
 
-close tt sset = abs (tt - sset) < 1
+isSunset t = at day t && not (at day (t+1))
 
 updSDeg s sdeg tt
-  | close h sunset = (s * kStarch) / (24 - (sunset - sunrise))
+  | isSunset tt = (s * kStarch) / (24 - (at photo' tt))
   | otherwise = sdeg
-  where
-    h = mod' tt 24.0
 
 sla' thr = slaCot * exp (slaExp*thr)
   where
@@ -332,9 +321,8 @@ rMaint s t =
 
 totalMaint s t = rMaint s t + lMaint s t
 
-----dassim (phRate temp par photo') rArea
 cAssim s t =
-    let phR = phRate12 -- 22.0 120.0 14
+    let phR = phRate (at temp t) (at par t) (at photo' t)
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
@@ -455,10 +443,8 @@ assim =
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
-        da = dassim phRate12 rArea
+        da = dassim (phRate temp par photo')  rArea
   |]
-
---- (phRate temp par photo')
 
 starchConv =
   [rule|
@@ -610,7 +596,7 @@ md =
         , devfp
         , transfp
         ]
-    , initState = mkSt'
+    , initState = mkSt''
     }
 
 mdLite =
