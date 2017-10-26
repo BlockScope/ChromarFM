@@ -25,21 +25,21 @@ fu = 0
 
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
 
--- temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
--- photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
--- day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
--- moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
--- par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
--- day  = day' <>*> constant 0.0
+temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
+photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
+day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
+moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
+par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
+day  = day' <>*> constant 0.0
 
-sunrise = 6
-sunset = 18 :: Double
-temp' = constant 22.0
-photo' = constant (sunset - sunrise)
-light = between sunrise sunset (constant True) (constant False)
-day = repeatEvery 24 light
-moist = constant 1.1
-par = constant 120.0
+-- sunrise = 6
+-- sunset = 18 :: Double
+-- temp' = constant 22.0
+-- photo' = constant (sunset - sunrise)
+-- light = between sunrise sunset (constant True) (constant False)
+-- day = repeatEvery 24 light
+-- moist = constant 1.1
+-- par = constant 120.0
 
 tempBase = constant 3.0
 temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
@@ -61,25 +61,25 @@ pperiod =
   when (photo' <<*> constant 10.0) (constant 0.6015) `orElse`
   (when (photo' <<*> constant 14.0) idev'' `orElse` constant 1.0)
 
-lightFr t
-  | td <= sunrise || td >= sunset + 1 = 0
-  | td >= sunrise + 1 && td < sunset = 1
-  | td <= sunrise + 1 = td - sunrise
-  | otherwise = sunset - td + 1
-  where
-    td = mod' t 24
+-- lightFr t
+--   | td <= sunrise || td >= sunset + 1 = 0
+--   | td >= sunrise + 1 && td < sunset = 1
+--   | td <= sunrise + 1 = td - sunrise
+--   | otherwise = sunset - td + 1
+--   where
+--     td = mod' t 24
 
-thrm t
-    | lightFr t == 0 = pN * (max tempt 0)
-    | lightFr t == 1 = (max tempt 0)
-    | otherwise =
-        max 0 (tempt * lightFr t) + pN * (max 0 tempt * (1 - lightFr t))
-  where
-    tempt = at temp t
+-- thrm t
+--     | lightFr t == 0 = pN * (max tempt 0)
+--     | lightFr t == 1 = (max tempt 0)
+--     | otherwise =
+--         max 0 (tempt * lightFr t) + pN * (max 0 tempt * (1 - lightFr t))
+--   where
+--     tempt = at temp t
 
-thermal = mkFluent thrm
+---thermal = mkFluent thrm
 
----thermal = when day temp `orElse` constant 0.0
+thermal = when day temp `orElse` constant 0.0
 
 ptu = (*) <$> thermal <*> pperiod
 
@@ -161,7 +161,7 @@ disp = when (ntemp <>*> constant 0.0) ntemp `orElse` constant 0.0
 --------------
 parseLine :: Int -> T.Text -> (Double, Double)
 parseLine n ln = (read $ T.unpack time, read $ T.unpack temp) where
-  elems = T.splitOn (T.pack " ") ln
+  elems = T.splitOn (T.pack ",") ln
   time = elems !! 0
   temp = elems !! n
 
