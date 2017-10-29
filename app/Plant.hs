@@ -23,7 +23,7 @@ logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
 tend = 1500
 
-thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
+thrmFinal = 2604 ---sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
 isLeaf :: Agent -> Bool
 isLeaf Leaf {} = True
@@ -187,9 +187,9 @@ ldem i thra thr
           (1 - ((thr - thra) / texp i))**(b-1)
     maxDem = 0.0161
 
-rdem thrt = dem / maxDem
+rdem thrt tf = dem / maxDem
   where
-    tr = rootLc * thrmFinal
+    tr = rootLc * tf
     a = 13.03
     b = 9.58
     dem = ((thrt + 0.5) / tr) ** (a - 1) * (1 - (thrt + 0.5) / tr) ** (b - 1)
@@ -260,9 +260,9 @@ tRDem =
         \s ->
              let tt =
                      sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in rdem tt
+                         [ d
+                         | (EPlant {dg = d}, _) <- s ]
+             in rdem tt thrmFinal
     }
 
 
@@ -332,7 +332,7 @@ mkSt =
         (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root, plant ])
   where
     cotMass = cotArea / slaCot
-    fR = rdem 100
+    fR = rdem 100 thrmFinal
     leaves =
         [ Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea}
         , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
@@ -482,7 +482,7 @@ rootGrowth =
   [rule|
     EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
     EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
-    @10*(rdem tt) [c - rgRes > cEqui]
+    @10*(rdem tt thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
@@ -540,7 +540,7 @@ eme =
           Cell{ c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
-              fR = rdem tt,
+              fR = rdem tt thrmFinal,
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
@@ -676,9 +676,9 @@ trdem =
         \s ->
              let tt =
                      sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in rdem tt
+                         [ d
+                         | (EPlant {dg = d}, _) <- s ]
+             in rdem tt thrmFinal
     }
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
