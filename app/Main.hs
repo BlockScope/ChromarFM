@@ -7,6 +7,7 @@ import           Data.Colour
 import           Data.Colour.Names
 import           Data.Default.Class
 import           Data.List
+import           Env
 import           GHC.Exts                               (groupWith, the)
 import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Backend.Cairo
@@ -29,8 +30,9 @@ mainLite =
         , leaf10Mass
         , leaf12Mass
         , nL
+        , tRDem
         ]
-        [0 .. 100*24]
+        [0 .. 365*24]
         outDir
 
 goPlot nreps obss tss outDir = do
@@ -142,10 +144,23 @@ tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
 avgLastTime :: [[(Time, a)]] -> Time
 avgLastTime tobss = avg $ map (fst . last) tobss
 
+report gts fts ss rms = writeFile fout (unlines rows)
+  where
+    dir = "out/lifeExpsVal"
+    fname = "f" ++ show fi ++ "_" ++ "d" ++ show psim ++ ".txt"
+    fout = dir ++ "/" ++ fname
+    out (gt, ft, ss, rm) =
+        show gt ++ " " ++ show ft ++ " " ++ show ss ++ " " ++ show rm
+    header = "germT" ++ " " ++ "flowerT" ++ " " ++ "ssetT" ++ " " ++ "rosMass"
+    rows =
+        header :
+        (map out (zip4 (reverse gts) (reverse fts) (reverse ss) (reverse rms)))
+
 mainDistr :: IO ()
 mainDistr = do
+    let
     gen <- R.getStdGen
-    let tend = (365 * 5 * 24)
+    let tend = (365 * 20 * 24)
     let traj =
             takeWhile
                 (\s -> getT s < tend)
@@ -165,10 +180,4 @@ mainDistr = do
             head
                 [ gt
                 | (System {germTimes = gt}, _) <- lState ]
-    mapM_ print rms
-    print "----------"
-    mapM_ print gts
-    print "----------"
-    mapM_ print fts
-    print "----------"
-    mapM_ print ss
+    report gts fts ss rms
