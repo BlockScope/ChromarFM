@@ -21,9 +21,8 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 1500
 
-thrmFinal = 2604 ---sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
+thrmFinal = 2604 --sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
 isLeaf :: Agent -> Bool
 isLeaf Leaf {} = True
@@ -480,9 +479,9 @@ maintRes' =
 
 rootGrowth =
   [rule|
-    EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
-    EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
-    @10*(rdem tt thrmFinal) [c - rgRes > cEqui]
+    EPlant{dg=d}, Root{m=m}, Cell{c=c, s=s'} -->
+    EPlant{dg=d}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
+    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
@@ -540,7 +539,7 @@ eme =
           Cell{ c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
-              fR = rdem tt thrmFinal,
+              fR = rdem d thrmFinal,
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
@@ -684,6 +683,6 @@ trdem =
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
-hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
+hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
 
 
