@@ -37,7 +37,12 @@ jv d
     | d == 18 = 1.2
     | otherwise = 1.0
 
-phRate tempt tpar pp =
+fstom m = sqrt fw
+  where
+    moistInd = (m + 200) / 200
+    fw = min (max 0.01 ((moistInd - 0.6)/0.2)) 1
+
+phRate tempt tpar pp m =
     if rho <= 0
         then avRub
         else min avRub ajRub
