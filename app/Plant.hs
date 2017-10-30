@@ -13,6 +13,9 @@ import           GHC.Generics
 import           Params
 import           Photo
 
+
+psim = 0.0
+
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
 logf' :: Double -> Double
@@ -20,7 +23,6 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
-
 
 thrmFinal = 2604 --sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
 
@@ -321,7 +323,7 @@ rMaint s t =
 totalMaint s t = rMaint s t + lMaint s t
 
 cAssim s t =
-    let phR = phRate (at temp t) (at par t) (at photo' t)
+    let phR = phRate (at temp t) (at par t) (at photo' t) (at moist t)
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
@@ -345,7 +347,7 @@ mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} 
 
 mkSt'' :: Multiset Agent
 mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
-             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0}
+             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=psim}, dg=0.0, art=0.0}
             ]
 
 leafMass = Observable { name = "mass",
@@ -369,9 +371,9 @@ data Attrs = Attrs
   } deriving (Ord, Eq, Show)
 
 data Agent
-    = System { germTimes   :: [Int]
-             , flowerTimes :: [Int]
-             , ssTimes     :: [Int]
+    = System { germTimes   :: [Double]
+             , flowerTimes :: [Double]
+             , ssTimes     :: [Double]
              , rosMass     :: [Double]}
     | Seed { mass :: Double
            , attr :: Attrs
@@ -419,7 +421,7 @@ dev =
 trans =
     [rule|
         System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
-        System{germTimes=(getMonth time:gts)}, Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
+        System{germTimes=(time:gts)}, Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
         @log' d
   |]
 
@@ -442,7 +444,7 @@ assim =
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
-        da = dassim (phRate temp par photo')  rArea
+        da = dassim (phRate temp par photo' moist)  rArea
   |]
 
 starchConv =
@@ -554,7 +556,7 @@ transp =
     [rule|
         System{flowerTimes=fts, rosMass=rms},
         EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
-        System{flowerTimes=(getMonth time:fts), rosMass=(leafMass:rms)},
+        System{flowerTimes=(time:fts), rosMass=(leafMass:rms)},
         FPlant{attr=atr, dg=0.0}
         @logf' d
     |]
@@ -565,7 +567,7 @@ devfp =
 transfp =
     [rule|
          System{ssTimes=ss}, FPlant{attr=atr, dg=d} -->
-         System{ssTimes=(getMonth time:ss)},
+         System{ssTimes=(time:ss)},
          Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
          @logs' d
    |]
@@ -648,26 +650,6 @@ seedD = Observable { name = "seedD",
 thrtt = Observable { name = "thrtt",
                      gen = sumM thrt . select isEPlant }
 
-avgGermMonth = Observable { name = "avgGermM",
-                            gen = avgGerm }
-  where
-    avgGerm mix = fromIntegral (median (head [gts | (System{germTimes=gts}, _) <- mix]))
-
-avgFlMonth = Observable { name = "avgFlM",
-                            gen = avgFl }
-  where
-    avgFl mix = fromIntegral (median (head [fts | (System{flowerTimes=fts}, _) <- mix]))
-
-avgSMonth = Observable { name = "avgSM",
-                         gen = avgS }
-  where
-    avgS mix = fromIntegral (median (head [ss | (System{ssTimes=ss}, _) <- mix]))
-
-avgRosMass = Observable { name = "avgRosMass",
-                          gen = avgMass }
-  where
-    avgMass mix = avg (head [rms | (System{rosMass=rms}, _) <- mix ])
-
 trdem =
     Observable
     { name = "rdem"
@@ -684,5 +666,3 @@ sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
-
-
