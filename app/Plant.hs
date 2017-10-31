@@ -13,9 +13,6 @@ import           GHC.Generics
 import           Params
 import           Photo
 
-
-psim = 0.0
-
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
 logf' :: Double -> Double
@@ -339,15 +336,15 @@ mkSt =
         , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
         ]
     root = Root { m = pr * fR * (seedInput / (pr*fR + 2)) }
-    plant = Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0}
+    plant = Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0, fi=0.598}, dg=0.0, wct=0.0}
     ra = rosArea (ms leaves)
 
 mkSt' :: Multiset Agent
-mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
+mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0, fi=0.598}, dg=0.0, wct=0.0} ]
 
-mkSt'' :: Multiset Agent
-mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
-             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=psim}, dg=0.0, art=0.0}
+mkSt'' :: Env -> Multiset Agent
+mkSt'' e = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
+             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=psim e, fi=frepr e}, dg=0.0, art=0.0}
             ]
 
 leafMass = Observable { name = "mass",
@@ -365,9 +362,15 @@ leaf10Mass = Observable { name = "mass10",
 leaf12Mass = Observable { name = "mass12",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
 
+data Env = Env
+    { psim  :: Double
+    , frepr :: Double
+    } deriving (Show)
+
 data Attrs = Attrs
   { ind :: Int
   , psi :: Double
+  , fi  :: Double
   } deriving (Ord, Eq, Show)
 
 data Agent
@@ -520,16 +523,16 @@ rootTransl =
   |]
 
 devp =
-  [rule| Plant{thrt=tt, dg=d, wct=w} -->
-         Plant{thrt=tt+(temp / 24.0),
-               dg=d+ptu* fp (wcUpd time w),
+  [rule| Plant{attr = atr, thrt=tt, dg=d, wct=w} -->
+         Plant{attr=atr, thrt=tt+(temp / 24.0),
+               dg=d+ptu* fp (wcUpd time w) (fi atr),
                wct=wcUpd time w}
          @1.0 |]
 
 devep =
-    [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
-           Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0),
-                              dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w}
+    [rule| Cell{s=s'}, EPlant{attr=atr, sdeg=sd, thrt=tt, dg=d, wct=w} -->
+           Cell{s=s'}, EPlant{attr=atr, sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0),
+                              dg=d+ptu* fp (wcUpd time w) (fi atr), wct=wcUpd time w}
            @1.0 |]
 
 eme =
@@ -542,6 +545,21 @@ eme =
             where
               cotMass = cotArea / slaCot,
               fR = rdem d thrmFinal,
+              ra = 2*cotArea*cos (10/180*pi),
+              si = initS * initC * ra
+  |]
+
+emeGerm =
+  [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
+         System{germTimes=(time:gts)},
+         EPlant{sdeg=calcSDeg si time, thrt=0.0, attr=atr, dg=0.0, wct=0.0},
+         Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
+         Cell{ c = initC * ra, s=si} @log' d [True]
+            where
+              cotMass = cotArea / slaCot,
+              fR = rdem 0.0 thrmFinal,
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
@@ -574,7 +592,7 @@ transfp =
 
 rootD = undefined
 
-md =
+md e =
     Model
     { rules =
         [ dev
@@ -597,7 +615,7 @@ md =
         , devfp
         , transfp
         ]
-    , initState = mkSt''
+    , initState = mkSt'' e
     }
 
 mdLite =
