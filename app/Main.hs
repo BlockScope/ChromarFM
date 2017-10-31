@@ -32,7 +32,7 @@ mainLite =
         , nL
         , tRDem
         ]
-        [0 .. 365*24]
+        [0 .. 365*24*5]
         outDir
 
 goPlot nreps obss tss outDir = do
@@ -40,7 +40,7 @@ goPlot nreps obss tss outDir = do
     let obssF = map gen obss
     let obsNms = map name obss
     let nObs = length obss
-    let trajs = runTT rgen nreps hasFlowered mdLite
+    let trajs = runTT rgen nreps hasFlowered  mdLite
     let tobsss = map (flip applyObs obssF) trajs
     let stobsss = map (tsample tss) tobsss
     mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
@@ -108,7 +108,7 @@ avgTraj i tobsss =
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 100*24
+    te = 5*365*24
 
 avgHour tobss = [(fromIntegral (the (map floor t)), avg obs) | (t, obs) <- tobss,
                  then group by (floor t) using groupWith]
@@ -144,10 +144,10 @@ tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
 avgLastTime :: [[(Time, a)]] -> Time
 avgLastTime tobss = avg $ map (fst . last) tobss
 
-report gts fts ss rms = writeFile fout (unlines rows)
+report e gts fts ss rms = writeFile fout (unlines rows)
   where
     dir = "out/lifeExpsVal"
-    fname = "f" ++ show fi ++ "_" ++ "d" ++ show psim ++ ".txt"
+    fname = "f" ++ show (frepr e) ++ "_" ++ "d" ++ show (psim e) ++ ".txt"
     fout = dir ++ "/" ++ fname
     out (gt, ft, ss, rm) =
         show gt ++ " " ++ show ft ++ " " ++ show ss ++ " " ++ show rm
@@ -158,13 +158,14 @@ report gts fts ss rms = writeFile fout (unlines rows)
 
 mainDistr :: IO ()
 mainDistr = do
-    let
+    let e = Env { psim = 0.0, frepr = 0.598}
+        mdE = md e
     gen <- R.getStdGen
     let tend = (365 * 20 * 24)
     let traj =
             takeWhile
                 (\s -> getT s < tend)
-                (simulate gen (rules md) (initState md))
+                (simulate gen (rules mdE) (initState mdE))
     let lState = getM (last traj)
     let rms =
             head
@@ -180,4 +181,4 @@ mainDistr = do
             head
                 [ gt
                 | (System {germTimes = gt}, _) <- lState ]
-    report gts fts ss rms
+    report e gts fts ss rms

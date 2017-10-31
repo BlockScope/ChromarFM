@@ -19,8 +19,6 @@ tbd = 3.0
 kt = 0.12
 to = 22
 
-fi = 0.5257
---fi = 0.737
 fu = 0
 
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
@@ -103,7 +101,7 @@ wcUpd t wc =
     ctemp = at temp t
     wc' = min (wcAcc wc ctemp) wcsat
 
-fp wc =
+fp wc fi =
   if wc < wcsat
     then fp1
     else fp2
@@ -155,8 +153,6 @@ htu t a psi
 disp = when (ntemp <>*> constant 0.0) ntemp `orElse` constant 0.0
   where
     ntemp = temp <-*> constant tbd
-
-
 
 --------------
 parseLine :: Int -> T.Text -> (Double, Double)

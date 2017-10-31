@@ -25,5 +25,6 @@ executable fm
                      colour >= 2.3,
                      lens >= 4.0,
                      data-default-class,
-                     time
+                     time,
+                     mtl		     
   default-language:    Haskell2010
