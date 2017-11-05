@@ -1,5 +1,6 @@
 {-# LANGUAGE TransformListComp #-}
 
+import           Agent
 import           Chromar
 import           Control.Lens                           hiding (at)
 import           Control.Monad
@@ -14,26 +15,43 @@ import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
 
-outDir = "out/fmliteExpsVal"
-
-main = mainDistr
-
-mainLite =
-    goPlot
-        5
-        [ carbon
-        , leafMass
-        , starch
-        , rootMass
-        , leaf1Mass
-        , leaf5Mass
-        , leaf10Mass
-        , leaf12Mass
-        , nL
-        , tRDem
+mkSt' :: Multiset Agent
+mkSt' =
+    ms
+        [ Plant
+          { thrt = 0.0
+          , attr =
+              Attrs
+              { ind = 1
+              , psi = 0.0
+              , fi = 0.598
+              }
+          , dg = 0.0
+          , wct = 0.0
+          }
         ]
-        [0 .. 365*24*5]
-        outDir
+
+mdLite =
+    Model
+    { rules =
+        [ growth
+        , assim
+        , leafCr
+        , starchConv
+        , starchFlow
+        , maintRes
+        , rootGrowth
+        , rootMaint
+        , leafTransl
+        , rootTransl
+        , devp
+        , devep
+        , eme
+        ]
+    , initState = mkSt'
+    }
+
+
 
 goPlot nreps obss tss outDir = do
     rgen <- R.getStdGen
@@ -144,41 +162,23 @@ tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
 avgLastTime :: [[(Time, a)]] -> Time
 avgLastTime tobss = avg $ map (fst . last) tobss
 
-report e gts fts ss rms = writeFile fout (unlines rows)
+mainLite =
+    goPlot
+        5
+        [ carbon
+        , leafMass
+        , starch
+        , rootMass
+        , leaf1Mass
+        , leaf5Mass
+        , leaf10Mass
+        , leaf12Mass
+        , nL
+        , tRDem
+        ]
+        [0 .. 365*24*5]
+        outDir
   where
-    dir = "out/lifeExpsVal"
-    fname = "f" ++ show (frepr e) ++ "_" ++ "d" ++ show (psim e) ++ ".txt"
-    fout = dir ++ "/" ++ fname
-    out (gt, ft, ss, rm) =
-        show gt ++ " " ++ show ft ++ " " ++ show ss ++ " " ++ show rm
-    header = "germT" ++ " " ++ "flowerT" ++ " " ++ "ssetT" ++ " " ++ "rosMass"
-    rows =
-        header :
-        (map out (zip4 (reverse gts) (reverse fts) (reverse ss) (reverse rms)))
+    outDir = "out/fmliteExpsVal"
 
-mainDistr :: IO ()
-mainDistr = do
-    let e = Env { psim = 0.0, frepr = 0.598}
-        mdE = md e
-    gen <- R.getStdGen
-    let tend = (365 * 20 * 24)
-    let traj =
-            takeWhile
-                (\s -> getT s < tend)
-                (simulate gen (rules mdE) (initState mdE))
-    let lState = getM (last traj)
-    let rms =
-            head
-                [ rm
-                | (System {rosMass = rm}, _) <- lState ]
-    let (gts, fts, ss) =
-            head
-                [ (gt, ft, s)
-                | (System {germTimes = gt
-                          ,flowerTimes = ft
-                          ,ssTimes = s}, _) <- lState ]
-    let gts =
-            head
-                [ gt
-                | (System {germTimes = gt}, _) <- lState ]
-    report e gts fts ss rms
+main = mainLite

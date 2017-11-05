@@ -3,6 +3,7 @@
 
 module Plant where
 
+import           Agent
 import           Chromar
 import           Data.Fixed
 import           Data.List
@@ -22,26 +23,6 @@ logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
 thrmFinal = 2604 --sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
-
-isLeaf :: Agent -> Bool
-isLeaf Leaf {} = True
-isLeaf _ = False
-
-isPlant :: Agent -> Bool
-isPlant (Plant{}) = True
-isPlant _ = False
-
-isEPlant :: Agent -> Bool
-isEPlant (EPlant{}) = True
-isEPlant _ = False
-
-isSeed :: Agent -> Bool
-isSeed (Seed{}) = True
-isSeed _ = False
-
-isSystem :: Agent -> Bool
-isSystem (System{}) = True
-isSystem _ = False
 
 median :: [Int] -> Int
 median [] = 0
@@ -324,29 +305,6 @@ cAssim s t =
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
-mkSt :: Multiset Agent
-mkSt =
-    ms
-        (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root, plant ])
-  where
-    cotMass = cotArea / slaCot
-    fR = rdem 100 thrmFinal
-    leaves =
-        [ Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea}
-        , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
-        ]
-    root = Root { m = pr * fR * (seedInput / (pr*fR + 2)) }
-    plant = Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0, fi=0.598}, dg=0.0, wct=0.0}
-    ra = rosArea (ms leaves)
-
-mkSt' :: Multiset Agent
-mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0, fi=0.598}, dg=0.0, wct=0.0} ]
-
-mkSt'' :: Env -> Multiset Agent
-mkSt'' e = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
-             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=psim e, fi=frepr e}, dg=0.0, art=0.0}
-            ]
-
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
 
@@ -362,50 +320,7 @@ leaf10Mass = Observable { name = "mass10",
 leaf12Mass = Observable { name = "mass12",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
 
-data Env = Env
-    { psim  :: Double
-    , frepr :: Double
-    } deriving (Show)
 
-data Attrs = Attrs
-  { ind :: Int
-  , psi :: Double
-  , fi  :: Double
-  } deriving (Ord, Eq, Show)
-
-data Agent
-    = System { germTimes   :: [Double]
-             , flowerTimes :: [Double]
-             , ssTimes     :: [Double]
-             , rosMass     :: [Double]}
-    | Seed { mass :: Double
-           , attr :: Attrs
-           , dg   :: Double
-           , art  :: Double}
-    | Leaf { i  :: Int
-           , ta :: Double
-           , m  :: Double
-           , a  :: Double}
-    | Cell { c :: Double
-           , s :: Double}
-    | Root { m :: Double}
-    | Plant { thrt :: Double
-            , attr :: Attrs
-            , dg   :: Double
-            , wct  :: Double}
-    | EPlant { sdeg :: Double
-             , thrt :: Double
-             , attr :: Attrs
-             , dg   :: Double
-             , wct  :: Double}
-    | FPlant { attr :: Attrs
-             , dg   :: Double}
-    deriving (Eq, Ord, Show)
-
-isCell (Cell{c=c}) = True
-isCell _ = False
-
---s2c :: Double -> Double
 s2c s pp = (kStarch * s) / (24 - pp)
 
 emerg d
@@ -591,52 +506,6 @@ transfp =
    |]
 
 rootD = undefined
-
-md e =
-    Model
-    { rules =
-        [ dev
-        , trans
-        , growth
-        , assim
-        , leafCr
-        , starchConv
-        , maintRes
-        , rootGrowth
-        , rootMaint
-        , leafTransl
-        , rootTransl
-        , devp
-        , devep
-        , eme
-        , leafD'
-        , leafD
-        , transp
-        , devfp
-        , transfp
-        ]
-    , initState = mkSt'' e
-    }
-
-mdLite =
-    Model
-    { rules =
-        [ growth
-        , assim
-        , leafCr
-        , starchConv
-        , starchFlow
-        , maintRes
-        , rootGrowth
-        , rootMaint
-        , leafTransl
-        , rootTransl
-        , devp
-        , devep
-        , eme
-        ]
-    , initState = mkSt'
-    }
 
 carbon =
     Observable
