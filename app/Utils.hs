@@ -24,23 +24,23 @@ goPlot nreps obss tss outDir md fb = do
     let trajs = runTT rgen nreps fb md
     let tobsss = map (flip applyObs obssF) trajs
     let stobsss = map (tsample tss) tobsss
-    mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
-    mapM_ (writeAvgObs obsNms stobsss outDir) [0 .. (nObs - 1)]
+    mapM_ (plotObs tss obsNms stobsss outDir) [0 .. (nObs - 1)]
+    mapM_ (writeAvgObs tss obsNms stobsss outDir) [0 .. (nObs - 1)]
     print $ avgLastTime stobsss
 
-writeAvgObs nms tobsss outDir i = writeFile fout (unlines stpoints)
+writeAvgObs tss nms tobsss outDir i = writeFile fout (unlines stpoints)
   where
     bOutDir = outDir ++ "/" ++ "text"
     fout = bOutDir ++ "/" ++ (nms !! i) ++ ".txt"
-    avgTj = avgTraj i tobsss
+    avgTj = avgTraj i tobsss tss
     stpoints = map (\(t, v) -> show t ++ " "  ++ show v) avgTj
 
 --- plot ith observable
-plotObs nms tobsss outDir i = renderableToFile def fout chart
+plotObs tss nms tobsss outDir i = renderableToFile def fout chart
   where
     bOutDir = outDir ++ "/" ++ "plots"
     fout = bOutDir ++ "/" ++ (nms !! i) ++ ".png"
-    avgTj = avgTraj i tobsss
+    avgTj = avgTraj i tobsss tss
     lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj]
 
     layout = layout_plots .~ lines
@@ -83,13 +83,12 @@ mkXYPairs i tobss =
 avgT :: Time -> [Fluent Obs] -> Obs
 avgT t fs = avg [at f t | f <- fs]
 
-avgTraj i tobsss =
+avgTraj i tobsss tss =
     [ (t, avgT t fluents)
-    | t <- [1 .. te] ]
+    | t <- tss ]
   where
     tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
     fluents = map flookup tobsssi
-    te = 365*24
 
 runTT
     :: (Eq a)
