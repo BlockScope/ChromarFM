@@ -344,8 +344,8 @@ trans =
 
 growth =
     [rule|
-      EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
-      EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta}, Cell{attr=atr, c=c, s=s'} -->
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'}, Cell{attr=atr, c=c-grRes, s=s'}
       @10*ld [c-grRes > cEqui]
         where
           ld = ldem i ta tt,
@@ -366,8 +366,8 @@ assim =
 
 starchConv =
   [rule|
-    EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
-    EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
+    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c, s=s'} -->
+    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
   |]
 
 starchFlow =
@@ -377,14 +377,14 @@ starchFlow =
 
 leafCr =
     [rule|
-      EPlant{thrt=tt} --> EPlant{thrt=tt}, Leaf{i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
+      EPlant{attr=atr, thrt=tt} --> EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
       @(rateApp lastThr (pCron' tt) tt)
     |]
 
 maintRes =
   [rule|
-    Cell{c=c, s=s'}, Leaf{a=a,i=i, m=m} -->
-    Cell{c=c-lmaint}, Leaf{m=m}
+    Cell{attr=atr, c=c, s=s'}, Leaf{attr=atr, a=a,i=i, m=m} -->
+    Cell{attr=atr, c=c-lmaint}, Leaf{attr=atr, m=m}
     @1.0 [c-lmaint > 0]
       where
         lmaint = maint m a i maxL nL temp |]
@@ -398,8 +398,8 @@ maintRes' =
 
 rootGrowth =
   [rule|
-    EPlant{dg=d}, Root{m=m}, Cell{c=c, s=s'} -->
-    EPlant{dg=d}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
+    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
+    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg}, Cell{attr=atr, c=c-rgRes, s=s'}
     @10*(rdem d thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
@@ -409,8 +409,8 @@ rootGrowth =
 
 rootMaint =
   [rule|
-    Root{m=m}, Cell{c=c, s=s'} -->
-    Root{m=m}, Cell{c=c-rm, s=s'}
+    Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
+    Root{attr=atr, m=m}, Cell{attr=atr, c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
         rm = (rm2c m)/(m2c leafMass) * (maintRos leafMass rArea temp)
@@ -418,8 +418,8 @@ rootMaint =
 
 leafTransl =
   [rule|
-    Leaf{m=lm}, Root{m=rm}, Cell{c=c, s=s'} -->
-    Leaf{m=lm-c2m tl}, Root{m=rm}, Cell{c=c+tl}
+    Leaf{attr=atr, m=lm}, Root{attr=atr,m=rm}, Cell{attr=atr, c=c, s=s'} -->
+    Leaf{attr=atr, m=lm-c2m tl}, Root{attr=atr, m=rm}, Cell{attr=atr, c=c+tl}
     @1.0 [c <= cEqui]
       where
         cEqui = 0.05 * rArea,
@@ -428,8 +428,8 @@ leafTransl =
 
 rootTransl =
   [rule|
-     Root{m=rm}, Cell{c=c, s=s'} -->
-     Root{m=rm-rc2m tl}, Cell{c=c+tl, s=s'}
+     Root{attr=atr, m=rm}, Cell{attr=atr, c=c, s=s'} -->
+     Root{attr=atr, m=rm-rc2m tl}, Cell{attr=atr, c=c+tl, s=s'}
      @1.0 [c <= cEqui]
        where
          cEqui = 0.05 * rArea,
@@ -452,10 +452,10 @@ devep =
 eme =
   [rule| Plant{thrt=tt, attr=ar, dg=d, wct=w} -->
          EPlant{sdeg=calcSDeg si time, thrt=tt, attr=ar, dg=d, wct=w},
-          Leaf{ i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Leaf{ i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
-          Cell{ c = initC * ra, s=si} @emerg tt [True]
+          Leaf{attr=ar, i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
+          Leaf{attr=ar, i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
+          Root {attr=ar, m = pr * fR * (seedInput / (pr*fR + 2)) },
+          Cell{attr=ar, c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
               fR = rdem d thrmFinal,
@@ -463,14 +463,20 @@ eme =
               si = initS * initC * ra
   |]
 
+emeGermSimpl =
+  [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
+         System{germTimes=(time:gts)},
+         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d
+  |]
+
 emeGerm =
   [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
          System{germTimes=(time:gts)},
          EPlant{sdeg=calcSDeg si time, thrt=0.0, attr=atr, dg=0.0, wct=0.0},
-         Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
-         Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
-         Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
-         Cell{ c = initC * ra, s=si} @log' d [True]
+         Leaf{attr=atr, i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Leaf{attr=atr, i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Root {attr=atr, m = pr * fR * (seedInput / (pr*fR + 2)) },
+         Cell{attr=atr, c = initC * ra, s=si} @log' d [True]
             where
               cotMass = cotArea / slaCot,
               fR = rdem 0.0 thrmFinal,
@@ -479,15 +485,15 @@ emeGerm =
   |]
 
 leafD =
-  [rule| FPlant{dg=d}, Leaf{ta=ta} --> FPlant{dg=d} @1.0 |]
+  [rule| FPlant{attr=atr,dg=d}, Leaf{attr=atr, ta=ta} --> FPlant{dg=d} @1.0 |]
 
 leafD' =
-  [rule| EPlant{thrt=tt}, Leaf{ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
+  [rule| EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
 
 transp =
     [rule|
         System{flowerTimes=fts, rosMass=rms},
-        EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
+        EPlant{attr=atr, dg=d, wct=w}, Root{attr=atr,m=m}, Cell{attr=atr,c=c, s=s'} -->
         System{flowerTimes=(time:fts), rosMass=(leafMass:rms)},
         FPlant{attr=atr, dg=0.0}
         @logf' d
