@@ -19,29 +19,16 @@ import           Utils
 
 
 mkSt'' :: Env -> Multiset Agent
-mkSt'' e = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
-             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=psim e, fi=frepr e}, dg=0.0, art=0.0}
-            ]
+mkSt'' e = ms ([System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]}] ++ seeds)
+  where
+    seeds = [Seed {mass=1.6e-5, attr=Attrs {ind=i, psi=psim e, fi=frepr e}, dg=0.0, art=0.0} | i <- [1..10]]
 
 md e =
     Model
     { rules =
         [ dev
-        , trans
-        , growth
-        , assim
-        , leafCr
-        , starchConv
-        , maintRes
-        , rootGrowth
-        , rootMaint
-        , leafTransl
-        , rootTransl
-        , devp
         , devep
-        , eme
-        , leafD'
-        , leafD
+        , emeGermSimpl
         , transp
         , devfp
         , transfp
@@ -59,7 +46,7 @@ mdSeed =
               , attr =
                   Attrs
                   { ind = 1
-                  , psi = 0.0
+                  , psi = 2.5
                   , fi = 0.598
                   }
               , dg = 0.0
@@ -126,25 +113,39 @@ mainLife = do
       frs = [0.598, 0.737]
   forM_ [(p, f) | p <- pms, f <- frs] (mainDistr "out/lifeExpsVal/lifecycles.txt")
 
-writeOut fout tobss = writeFile fout (unlines rows)
+writeOut nms fout tobss = writeFile fout (unlines rows)
   where
-    rows = [show t ++ " "  ++ show obs | (t, obs) <- tobss]
+    header = "time" ++ " " ++ intercalate " " nms
+    rows = header : [show t ++ " "  ++ showr obs | (t, obs) <- tobss]
+    showr obss = intercalate " " $ map show obss
 
+mainSeed = do
+  print "hello"
+  goPlot 5 [seedDev] [1..2*365*24] "out/lifeExpsVal" mdSeed hasGerminated
 
-go = do
-    print "hello"
-    rg <- R.getStdGen
-    let traj =
-            takeWhile
-                (hasGerminated . getM)
-                (simulate rg (rules mdSeed) (initState mdSeed))
-    writeOut "out/lifeExpsVal/seedDev.txt" $
-        take
-            10000
-            [ (getT s, gen seedDev (getM s))
-            | s <- traj ]
+nSeeds = Observable { gen=countM . select isSeed, name ="nSeeds" }
+nPlants = Observable { gen = countM . select isEPlant, name="nPlants"}
+nFPlants = Observable { gen = countM . select isFPlant, name = "nFPlants"}
+
+gop obss tss fout md = do
+  rgen <- R.getStdGen
+  let obssF = map gen obss
+  let obsNms = map name obss
+  let nObs = length obss
+  let traj = simulate rgen (rules md) (initState md)
+  let tobss = (flip applyObs obssF) traj
+  let stobss = (tsample tss) tobss
+  writeOut obsNms fout stobss
 
 main = do
-  print "hello"
-  goPlot 5 [seedDev] [1..365*24] "out/lifeExpsVal" mdSeed hasGerminated
+    print "running..."
+    gop
+        [nSeeds, nPlants, nFPlants]
+        [0,24 .. 10*365 * 24]
+        "out/lifeExpsVal/outNs.txt"
+        (md
+             (Env
+             { psim = 0.0
+             , frepr = 0.598
+             }))
 
