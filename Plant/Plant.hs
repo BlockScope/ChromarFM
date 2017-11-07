@@ -320,7 +320,6 @@ leaf10Mass = Observable { name = "mass10",
 leaf12Mass = Observable { name = "mass12",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
 
-
 s2c s pp = (kStarch * s) / (24 - pp)
 
 emerg d
@@ -332,7 +331,7 @@ $(return [])
 
 dev =
     [rule| Seed{attr=atr, dg=d, art=a} -->
-           Seed{attr=atr, dg = d + (htu time a (psi atr)), art=a + (arUpd moist temp)}
+           Seed{attr=atr, dg = d + (htu time a (psi atr))/1.0, art=a + (arUpd moist temp)/1.0}
            @1.0
    |]
 
@@ -553,3 +552,6 @@ sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
+
+hasGerminated :: Multiset Agent -> Bool
+hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
