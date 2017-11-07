@@ -32,7 +32,8 @@ library
 		      
 executable fmLife
   hs-source-dirs:      app
-  main-is:             Main.hs
+  main-is:             MainL.hs
+  other-modules:       Utils
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:     base,
                      random >=1.1 && <1.2,
@@ -53,7 +54,8 @@ executable fmLife
 
 executable fm
   hs-source-dirs:      app
-  main-is:             MainL.hs
+  main-is:             Main.hs
+  other-modules        Utils
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -O2
   build-depends:     base,
                      random >=1.1 && <1.2,
