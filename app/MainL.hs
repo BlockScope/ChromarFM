@@ -1,4 +1,5 @@
 {-# LANGUAGE TransformListComp #-}
+module Main where
 
 import           Agent
 import           Chromar
@@ -14,6 +15,7 @@ import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
+import           Utils
 
 
 mkSt'' :: Env -> Multiset Agent
@@ -46,6 +48,28 @@ md e =
         ]
     , initState = mkSt'' e
     }
+
+mdSeed =
+    Model
+    { rules = [dev]
+    , initState =
+        ms
+            [ Seed
+              { mass = 1.6e-5
+              , attr =
+                  Attrs
+                  { ind = 1
+                  , psi = 0.0
+                  , fi = 0.598
+                  }
+              , dg = 0.0
+              , art = 0.0
+              }
+            ]
+    }
+
+seedDev = Observable { gen = sumM dg . select isSeed,
+                       name = "seedDev" }
 
 report e fout gts fts ss rms = appendFile fout (unlines rows)
   where
@@ -102,4 +126,25 @@ mainLife = do
       frs = [0.598, 0.737]
   forM_ [(p, f) | p <- pms, f <- frs] (mainDistr "out/lifeExpsVal/lifecycles.txt")
 
-main = mainLife
+writeOut fout tobss = writeFile fout (unlines rows)
+  where
+    rows = [show t ++ " "  ++ show obs | (t, obs) <- tobss]
+
+
+go = do
+    print "hello"
+    rg <- R.getStdGen
+    let traj =
+            takeWhile
+                (hasGerminated . getM)
+                (simulate rg (rules mdSeed) (initState mdSeed))
+    writeOut "out/lifeExpsVal/seedDev.txt" $
+        take
+            10000
+            [ (getT s, gen seedDev (getM s))
+            | s <- traj ]
+
+main = do
+  print "hello"
+  goPlot 5 [seedDev] [1..365*24] "out/lifeExpsVal" mdSeed hasGerminated
+
