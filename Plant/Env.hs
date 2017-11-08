@@ -23,16 +23,15 @@ fu = 0
 
 dataFile = "data/rad/weatherValencia2yrsRad.csv"
 
-
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))
 
-temp' = shift 5950 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 4)))
-photo' = shift 5950 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 2)))
-day' = shift 5950 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 3)))
-moist = shift 5950 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 5)))
-par = shift 5950 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 6)))
-day  = shift 5950 (day' <>*> constant 0.0)
+temp' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 4))
+photo' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 2))
+day' = repeatEvery 17520 (unsafePerformIO (readTable dataFile 3))
+moist = repeatEvery 17520 (unsafePerformIO (readTable dataFile 5))
+par = repeatEvery 17520 (unsafePerformIO (readTable dataFile 6))
+day  = day' <>*> constant 0.0
 
 -- sunrise = 6
 -- sunset = 18 :: Double
