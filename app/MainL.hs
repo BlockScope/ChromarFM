@@ -9,43 +9,64 @@ import           Data.Colour
 import           Data.Colour.Names
 import           Data.Default.Class
 import           Data.List
+import           Data.Random.Normal
 import           Env
 import           GHC.Exts                               (groupWith, the)
 import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Backend.Cairo
-import           PlantL
+import           Plant
 import qualified System.Random                          as R
-import           Utils
+import           Data.Set.Monad     (Set)
 
-
-mkSt'' :: Env -> Int -> Multiset Agent
-mkSt'' e n = ms seeds
+mkSt'' e n= ms seeds
   where
     seeds = [Seed {mass=1.6e-5,
                    attr=Attrs {ind=i, psi=psim e, fi=frepr e},
                    dg=0.0,
                    art=0.0}
-            | i <- [1..n]]
+            | i <- [1..n]] ++ [System{germTimes=[], flowerTimes=[], ssTimes=[], rosMass=[]}]
 
-mdSimpl e =
+-- mdSimpl e =
+--     Model
+--     { rules =
+--         [ dev
+--         , devep
+--         , germ
+--         , transp
+--         , devfp
+--         , transfp
+--         ]
+--     , initState = mkSt'' e 20
+--     }
+
+mdFM e =
     Model
     { rules =
         [ dev
+        , growth
+        , assim
+        , starchConv
+        , starchFlow
+        , leafCr
+        , maintRes
+        , rootGrowth
+        , rootMaint
+        , leafTransl
+        , devp
         , devep
-        , germ
+        , emeGerm
+        , leafD
+        , leafD'
         , transp
         , devfp
         , transfp
         ]
-    , initState = mkSt'' e 20
+    , initState = mkSt'' e 1
     }
 
-seedDev = Observable { gen = sumM dg . select isSeed,
-                       name = "seedDev" }
-
-nSeeds = Observable { gen=countM . select isSeed, name ="nSeeds" }
-nPlants = Observable { gen = countM . select isEPlant, name="nPlants"}
-nFPlants = Observable { gen = countM . select isFPlant, name = "nFPlants"}
+nseeds = Observable { gen=countM . select isSeed, name ="nseeds" }
+nplants = Observable { gen = countM . select isEPlant, name="nplants"}
+nfplants = Observable { gen = countM . select isFPlant, name = "nfplants"}
 
 writeOut nms fout tobss = writeFile fout (unlines rows)
   where
@@ -63,14 +84,23 @@ gop obss tss fout md = do
   let stobss = (tsample tss) tobss
   writeOut obsNms fout stobss
 
+tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
+tsample _ [] = []
+tsample [] _ = []
+tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
+tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
+    | ts1 < t1 = (ts1, v1) : tsample tss tv
+    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
+    | ts1 >= t2 = tsample ts tvs
+
 main = do
     print "running..."
     gop
-        [nSeeds, nPlants, nFPlants]
-        [0,24 .. 10*365 * 24]
-        "out/lifeExpsVal/outNs.txt"
-        (mdSimpl
+        [nseeds, nplants, nfplants]
+        [0,24 .. 5*365 * 24]
+        "out/lifeExpsVal/outNsLFM.txt"
+        (mdFM
              (Env
              { psim = 0.0
-             , frepr = 0.598
+             , frepr = 0.737
              }))
