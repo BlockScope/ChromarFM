@@ -54,6 +54,7 @@ executable fmLife
                      cassava,
                      vector,
                      bytestring,
-                     set-monad
+                     set-monad,
+                     split
 		     
   default-language:    Haskell2010
