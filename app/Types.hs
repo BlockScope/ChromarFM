@@ -11,7 +11,11 @@ data LifeEvent
     | SeedSet
     deriving (Generic, Show)
 
-instance FromField LifeEvent
+instance FromField LifeEvent where
+  parseField e
+       | e == "Germ" = pure Germ
+       | e == "Flower" = pure Flower
+       | e == "SeedSet" = pure SeedSet
 
 instance ToField LifeEvent where
   toField Germ = "Germ"
@@ -22,6 +26,9 @@ data Event = Event
     { timeE :: !Double
     , pid :: !Int
     , typeE :: !LifeEvent
+    , nSeeds :: !Int
+    , nPlants :: !Int
+    , nFPlants :: !Int
     } deriving (Generic, Show)
 
 instance FromNamedRecord Event
