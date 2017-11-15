@@ -20,57 +20,42 @@ logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
 thrmFinal = 2604
 
-plantD = Observable { name = "plantD",
-                      gen = sumM dg . select isPlant }
-
-eplantD = Observable { name = "plantD",
-                      gen = sumM dg . select isEPlant }
-
-plantTa = Observable { name = "plantTa",
-                       gen = sumM ta . select isEPlant }
-
-sdg =
-    Observable
-    { name = "sdeg"
-    , gen = sumM sdeg . select isEPlant
-    }
-
 $(return [])
 
 ----- rules -------
 
 dev =
     [rule| Seed{attr=atr, dg=d, art=a} -->
-           Seed{attr=atr, dg = d + (htu time a (psi atr)), art=a + (arUpd moist temp)}
-           @1.0
+           Seed{attr=atr, dg = d + 24*(htu time a (psi atr)), art=a + 24*(arUpd moist temp)}
+           @1.0/24.0
    |]
 
 germ =
   [rule| Seed{mass=m, attr=atr, dg=d, art=a} -->
-         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d
+         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d / 24.0
   |]
 
 devep =
     [rule| EPlant{attr=atr, thrt=tt, dg=d, wct=w} -->
            EPlant{attr=atr, thrt=tt+(temp / 24.0),
-                  dg=d+ptu* fp (wcUpd time w) (fi atr), wct=wcUpd time w}
-           @1.0 |]
+                  dg=d+24*ptu* fp (wcUpd time w) (fi atr), wct=24*wcUpd time w}
+           @1.0/24.0 |]
 
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w} -->
         FPlant{attr=atr, dg=0.0}
-        @logf' d
+        @logf' d/24.0
     |]
-
+    
 devfp =
-    [rule| FPlant{dg=d} --> FPlant{dg=d+disp} @1.0 |]
+    [rule| FPlant{dg=d} --> FPlant{dg=d+24.0*disp} @1.0/24.0 |]
 
 transfp =
     [rule|
          FPlant{attr=atr, dg=d} -->
          Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
-         @logs' d
+         @logs' d/24.0
    |]
 
 ----------
