@@ -48,6 +48,11 @@ avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
     in (realToFrac t / realToFrac n)
 
+dropYrs :: Int -> TSeries Double -> TSeries Double
+dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
+  where
+    yrHours = fromIntegral (n * 365*24)
+
 extractTSeries :: (Sample -> a) -> [Sample] -> TSeries a
 extractTSeries ext ps = [(time p, ext p) | p <- ps]
 
@@ -108,9 +113,9 @@ goAvgYearPlot fout ps =
 goAvgYearWrite fout ps =
     writeOut fout ["nseeds", "nplants", "nfplants"] (tseeds, tplants, tfplants)
   where
-    tseeds = avgYear (extractTSeries nseeds ps)
-    tplants = avgYear (extractTSeries nplants ps)
-    tfplants = avgYear (extractTSeries nfplants ps)
+    tseeds = avgYear (dropYrs 15 . extractTSeries nseeds $ ps)
+    tplants = avgYear (dropYrs 15 . extractTSeries nplants $ ps)
+    tfplants = avgYear (dropYrs 15 . extractTSeries nfplants $ ps)
 
 parseOutMode :: String -> Out
 parseOutMode "Plot" = PlotO
