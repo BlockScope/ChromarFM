@@ -463,12 +463,6 @@ eme =
               si = initS * initC * ra
   |]
 
-emeGermSimpl =
-  [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
-         System{germTimes=(time:gts)},
-         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d
-  |]
-
 emeGerm =
   [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
          System{germTimes=(time:gts)},
