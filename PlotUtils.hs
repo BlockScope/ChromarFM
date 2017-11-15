@@ -42,11 +42,3 @@ go nms tvalss = plotLines plots
     colours = [blue, red, magenta, green, gray, brown]
 
     plots = [mkLine s c vals | (s, c, vals) <- zip3 nms colours tvalss]
-
-
-
-
-
-
-
-
