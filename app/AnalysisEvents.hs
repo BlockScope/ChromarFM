@@ -21,17 +21,33 @@ import Chromar.Fluent
 import Data.Maybe
 import Data.List.Split
 import GHC.Exts
+import System.FilePath.Posix
 
 data Lifecycle = Lifecycle
-    { germT :: Double
+    { pidL :: Int
+    , germT :: Double
     , flowerT :: Double
     , ssetT :: Double
     }
 
 instance Show Lifecycle where
-    show Lifecycle {germT = gt
+    show Lifecycle { pidL = p
+                   , germT = gt
                    ,flowerT = ft
-                   ,ssetT = st} = show gt ++ " " ++ show ft ++ " " ++ show st
+                   ,ssetT = st} =
+        show gt ++ " " ++ show ft ++ " " ++ show st
+
+toDay :: Lifecycle -> Lifecycle
+toDay Lifecycle {pidL=p
+                ,germT = gt
+                ,flowerT = ft
+                ,ssetT = st} =
+    Lifecycle
+    { pidL = p
+    , germT = getDayYear gt
+    , flowerT = getDayYear ft
+    , ssetT = getDayYear st
+    }
 
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
@@ -50,8 +66,15 @@ avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
     in (realToFrac t / realToFrac n)
 
+median l = (sort l) !! (length l `quot` 2)
+
 dropYrs :: Int -> TSeries Int -> TSeries Int
 dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
+  where
+    yrHours = fromIntegral (n * 365*24)
+
+dropYrsE :: Int -> [Event] -> [Event]
+dropYrsE n es = dropWhile (\e -> timeE e < yrHours) es
   where
     yrHours = fromIntegral (n * 365*24)
 
@@ -64,8 +87,12 @@ extractTSeries ext tss ps = [(t, at f t) | t <- tss]
 avgYear :: TSeries Int -> TSeries Double
 avgYear ts = M.toList avgy
   where
-    toYear ts = [(getDayYear h, fromIntegral el) | (h, el) <- ts]
-    toN ts = [(d, 1) | (d, el) <- ts]
+    toYear ts =
+        [ (getDayYear h, fromIntegral el)
+        | (h, el) <- ts ]
+    toN ts =
+        [ (d, 1)
+        | (d, el) <- ts ]
     m = M.fromListWith (+) (toYear ts)
     n = M.fromListWith (+) (toN . toYear $ ts)
     avgy = M.unionWith (/) m n
@@ -77,13 +104,16 @@ precondition is not checked
 writeOut fout nms (ts1, ts2, ts3) = writeFile fout (unlines rows)
   where
     catc t v1 v2 v3 = intercalate "," (map show [t, v1, v2, v3])
-    header = "time" ++ "," ++  (intercalate "," nms)
-    rows = header : [catc t v1 v2 v3 | ((t, v1), (_, v2), (_, v3)) <- zip3 ts1 ts2 ts3]
+    header = "time" ++ "," ++ (intercalate "," nms)
+    rows =
+        header :
+        [ catc t v1 v2 v3
+        | ((t, v1), (_, v2), (_, v3)) <- zip3 ts1 ts2 ts3 ]
 
 goAvgYearWrite fout ps =
     writeOut fout ["nseeds", "nplants", "nfplants"] (tseeds, tplants, tfplants)
   where
-    tss = [0,24 .. 60*365 * 24]
+    tss = [0,24 .. 60 * 365 * 24]
     tseeds = avgYear (dropYrs 15 . extractTSeries nSeeds tss $ ps)
     tplants = avgYear (dropYrs 15 . extractTSeries nPlants tss $ ps)
     tfplants = avgYear (dropYrs 15 . extractTSeries nFPlants tss $ ps)
@@ -91,16 +121,20 @@ goAvgYearWrite fout ps =
 getLifecycles :: [Event] -> [Lifecycle]
 getLifecycles es = map length (chunksOf 3 es)
   where
-    length [Event{timeE=t, typeE=Germ},
+    length [Event{timeE=t, pid=i, typeE=Germ},
             Event{timeE=t1, typeE=Flower},
             Event{timeE=t2, typeE=SeedSet}] =
-      Lifecycle { germT = t, flowerT=t1, ssetT = t2}
-    length _ = Lifecycle {germT=0, flowerT=0, ssetT=0}
+      Lifecycle { pidL =i, germT = t, flowerT=t1, ssetT = t2}
+    length _ = Lifecycle {pidL=0, germT=0, flowerT=0, ssetT=0}
 
 getLifecycleDistr :: [Event] -> [Lifecycle]
-getLifecycleDistr es = foldr (++) [] lifesId
+getLifecycleDistr es = M.foldr (++) [] lifesId
   where
-    idGrouped= M.fromListWith (++) [(pid e, [e]) | e <- es]
+    idGrouped =
+        M.fromListWith
+            (++)
+            [ (pid e, [e])
+            | e <- es ]
     sortedEvents = M.map (sortWith timeE) idGrouped
     lifesId = M.map getLifecycles sortedEvents
 
@@ -111,11 +145,102 @@ getLengths ls =
     , let len = ssetT life - germT life
     , len > 0 ]
 
-main = do
-  args <- getArgs
-  let fin = args !! 0
-      fout = args !! 1
+writeLengths :: FilePath -> [Double] -> IO ()
+writeLengths fout ls = writeFile fout (unlines $ map show ls)
+
+doAnalysis :: FilePath -> [Event] -> IO ()
+doAnalysis fp es = do
+    let lifeLengths = getLengths (getLifecycleDistr es)
+        avgYearFout = (dropExtension fp) ++ "AvgYear.txt"
+        lengthsFout = (dropExtension fp) ++ "Lengths.txt"
+    goAvgYearWrite avgYearFout es
+    writeLengths lengthsFout lifeLengths
+
+sortLFs :: (Lifecycle -> a) -> Double -> Double -> [Lifecycle] -> ([a], [a])
+sortLFs f t1 t2 ls = (livesF cond1, livesF cond2)
+  where
+    cond1 t1 t2 = abs t1 > abs t2
+    cond2 t1 t2 = abs t1 <= abs t2
+    livesF cond =
+        [ f life
+        | life <- ls
+        , let len = ssetT life - germT life
+        , let ct1 = len - t1
+        , let ct2 = len - t2
+        , cond ct1 ct2 ]
+
+getAvgLifecycle :: [Lifecycle] -> Lifecycle
+getAvgLifecycle ls =
+    Lifecycle
+    { pidL = 0
+    , germT = avg (map germT ls)
+    , flowerT = avg (map flowerT ls)
+    , ssetT = avg (map ssetT ls)
+    }
+
+getMedianLifecycle :: [Lifecycle] -> Lifecycle
+getMedianLifecycle ls =
+    Lifecycle
+    { pidL = 0
+    , germT = median (map germT ls)
+    , flowerT = median (map flowerT ls)
+    , ssetT = median (map ssetT ls)
+    }
+
+bimodalTest :: [Event] -> Time -> Time -> (Lifecycle, Lifecycle)
+bimodalTest es t1 t2 =
+    (toDay $ getMedianLifecycle ls1, toDay $ getMedianLifecycle ls2)
+  where
+    ls = getLifecycleDistr es
+    (ls1, ls2) = sortLFs id t1 t2 ls
+
+bimodalTest' :: [Event] -> Time -> Time -> M.Map Int Double -> [(Double, Int)]
+bimodalTest' es t1 t2 psis = rows ++ rows1
+  where
+    ls = filter (\l -> pidL l > 0) (getLifecycleDistr es)
+    (ls1, ls2) = sortLFs pidL t1 t2 ls
+    rows =
+        [ (psis M.! i, 1)
+        | i <- ls1 ]
+    rows1 =
+        [ (psis M.! i, 2)
+        | i <- ls2 ]
+
+writePsisDistr :: FilePath -> [(Double, Int)] -> IO ()
+writePsisDistr fout psis =
+    writeFile fout $
+    unlines
+        [ show p ++ " " ++ show i
+        | (p, i) <- psis ]
+
+getPsis :: [Double] -> M.Map Int Double
+getPsis psis =
+    M.fromList
+        [ (i, p)
+        | (i, p) <- zip [1 .. length psis] psis ]
+
+readEvents :: FilePath -> IO [Event]
+readEvents fin = do
   csvData <- BL.readFile fin
   case decodeByName csvData of
-        Left err -> putStrLn err
-        Right (_, v) -> mapM_ (putStrLn . show) $ getLengths (getLifecycleDistr (V.toList v))
+    Left err -> error err
+    Right (_, v) -> return $ V.toList v
+  
+main = do
+    args <- getArgs
+    let fin = args !! 0
+        pf = args !! 1
+    csvData <- BL.readFile fin
+    psisS <- readFile pf
+    let psis = getPsis (map read (lines psisS))
+    events <- readEvents fin
+    doAnalysis fin events
+
+
+-- print $ bimodalTest events (50 * 24) (220 * 24)
+-- writePsisDistr
+--     "../out/lifeExpsVal/psisModes.txt"
+--     (bimodalTest' events (50 * 24) (220 * 24) psis)
+
+-- doAnalysis fin (V.toList v)
+-- print $ bimodalTest (V.toList v) (50*24) (220*24)          
