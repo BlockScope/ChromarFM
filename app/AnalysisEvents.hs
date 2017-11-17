@@ -4,6 +4,7 @@ module AnalysisEvents where
 
 import Types
 import Control.Applicative
+import Control.Monad
 import Control.Lens hiding (at)
 import qualified Data.ByteString.Lazy as BL
 import Data.Colour
@@ -22,6 +23,27 @@ import Data.Maybe
 import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
+
+data Location
+    = Norwich
+    | Halle
+    | Valencia
+    | Oulu
+    deriving (Show)
+
+codeName :: Location -> String
+codeName Norwich = "Nor"
+codeName Halle = "Hal"
+codeName Oulu = "Oul"
+codeName Valencia = "Val"
+
+fLoc :: Location -> String
+fLoc loc = fname (codeName loc)
+  where
+    fname nm = "../out/lifeExps" ++ nm ++ "/outEventsLL.txt" :: String
+
+isGerm Event{typeE=Germ} = True
+isGerm _ = True
 
 data Lifecycle = Lifecycle
     { pidL :: Int
@@ -49,12 +71,33 @@ toDay Lifecycle {pidL=p
     , ssetT = getDayYear st
     }
 
+toDayL = map toDay
+
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
 flookupMDef def tvals =
     mkFluent (\t -> fromMaybe def $ fmap snd (M.lookupLE t tvals))
 
 type TSeries a = [(Time, a)]
+
+mkHistogram :: (RealFrac a) => Colour Double -> [a] -> Plot a Int
+mkHistogram c vals =
+    histToPlot
+        (  plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
+           plot_hist_values .~ vals $ def)
+
+plotLines plots = renderableToFile def fout chart
+  where
+    fout = "plot.png"
+    layout = layout_plots .~ plots
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ def
+
+    chart = toRenderable layout
 
 getDayYear :: Double -> Double
 getDayYear time = fromIntegral dayYear
@@ -74,7 +117,7 @@ dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
     yrHours = fromIntegral (n * 365*24)
 
 dropYrsE :: Int -> [Event] -> [Event]
-dropYrsE n es = dropWhile (\e -> timeE e < yrHours) es
+dropYrsE n es = dropWhile (\e -> not (isGerm e)) (dropWhile (\e -> timeE e < yrHours) es)
   where
     yrHours = fromIntegral (n * 365*24)
 
@@ -127,15 +170,18 @@ getLifecycles es = map length (chunksOf 3 es)
       Lifecycle { pidL =i, germT = t, flowerT=t1, ssetT = t2}
     length _ = Lifecycle {pidL=0, germT=0, flowerT=0, ssetT=0}
 
+
+groupById :: [Event] -> M.Map Int [Event]
+groupById es =
+    M.fromListWith
+        (++)
+        [ (pid e, [e])
+        | e <- es ]
+
 getLifecycleDistr :: [Event] -> [Lifecycle]
 getLifecycleDistr es = M.foldr (++) [] lifesId
   where
-    idGrouped =
-        M.fromListWith
-            (++)
-            [ (pid e, [e])
-            | e <- es ]
-    sortedEvents = M.map (sortWith timeE) idGrouped
+    sortedEvents = M.map (sortWith timeE) (groupById es)
     lifesId = M.map getLifecycles sortedEvents
 
 getLengths :: [Lifecycle] -> [Double]
@@ -159,8 +205,8 @@ doAnalysis fp es = do
 sortLFs :: (Lifecycle -> a) -> Double -> Double -> [Lifecycle] -> ([a], [a])
 sortLFs f t1 t2 ls = (livesF cond1, livesF cond2)
   where
-    cond1 t1 t2 = abs t1 > abs t2
-    cond2 t1 t2 = abs t1 <= abs t2
+    cond1 t1 t2 = abs t1 < abs t2
+    cond2 t1 t2 = abs t1 >= abs t2
     livesF cond =
         [ f life
         | life <- ls
@@ -219,20 +265,27 @@ getPsis psis =
         [ (i, p)
         | (i, p) <- zip [1 .. length psis] psis ]
 
+multIndex :: [Int] -> M.Map Int a -> [a]
+multIndex is m = [m M.! i | i <- is]
+
 readEvents :: FilePath -> IO [Event]
 readEvents fin = do
   csvData <- BL.readFile fin
   case decodeByName csvData of
     Left err -> error err
     Right (_, v) -> return $ V.toList v
+
+readPsis :: FilePath -> IO (M.Map Int Double)
+readPsis fin = do
+  psisS <- readFile fin
+  return $ getPsis (map read (lines psisS))
   
 main = do
     args <- getArgs
     let fin = args !! 0
         pf = args !! 1
     csvData <- BL.readFile fin
-    psisS <- readFile pf
-    let psis = getPsis (map read (lines psisS))
+    psis <- readPsis pf
     events <- readEvents fin
     doAnalysis fin events
 
