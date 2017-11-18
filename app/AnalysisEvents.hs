@@ -42,9 +42,11 @@ fLoc loc = fname (codeName loc)
   where
     fname nm = "../out/lifeExps" ++ nm ++ "/outEventsLL.txt" :: String
 
-isGerm Event{typeE=Germ} = True
-isGerm _ = True
+isNGerm Event{typeE=Flower} = True
+isNGerm Event{typeE=SeedSet} = True
+isNGerm _ = False
 
+{- we should add a phantom type to keep track of the time + type parameter for time -}
 data Lifecycle = Lifecycle
     { pidL :: Int
     , germT :: Double
@@ -71,7 +73,52 @@ toDay Lifecycle {pidL=p
     , ssetT = getDayYear st
     }
 
+toWeek :: Lifecycle -> Lifecycle
+toWeek Lifecycle {pidL=p
+                ,germT = gt
+                ,flowerT = ft
+                ,ssetT = st} =
+    Lifecycle
+    { pidL = p
+    , germT = fromIntegral $ truncate (gt / 7)
+    , flowerT = fromIntegral $ truncate (ft / 7)
+    , ssetT = fromIntegral $ truncate (st / 7)
+    }
+
+eqTiming :: Lifecycle -> Lifecycle -> Bool
+eqTiming Lifecycle {germT = gt
+                   ,flowerT = ft
+                   ,ssetT = st} Lifecycle {germT = gt'
+                                          ,flowerT = ft'
+                                          ,ssetT = st'} =
+    (gt == gt') && (ft == ft') && (st == st')
+
+{- most occured lifecycles with weekly granularity -}
+mostOccured :: [Lifecycle] -> Lifecycle
+mostOccured ls =
+    Lifecycle
+    { pidL = 0
+    , germT = mocc germT
+    , flowerT = mocc flowerT
+    , ssetT = mocc ssetT
+    }
+  where
+    lsw = map (toWeek . toDay) ls
+    mocc f = (head . fst) $ 
+        (maximumBy
+            compCounts
+            [ (g, length g)
+            | g <- group (sort $ map f lsw) ])
+
+compCounts :: (a, Int) -> (a, Int) -> Ordering
+compCounts (_, n) (_, m)
+  | n > m = GT
+  | n == m = EQ
+  | n < m = LT           
+
 toDayL = map toDay
+
+toWeekL = map toWeek
 
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
@@ -117,7 +164,7 @@ dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
     yrHours = fromIntegral (n * 365*24)
 
 dropYrsE :: Int -> [Event] -> [Event]
-dropYrsE n es = dropWhile (\e -> not (isGerm e)) (dropWhile (\e -> timeE e < yrHours) es)
+dropYrsE n es = dropWhile isNGerm (dropWhile (\e -> timeE e < yrHours) es)
   where
     yrHours = fromIntegral (n * 365*24)
 
