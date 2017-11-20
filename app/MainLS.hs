@@ -23,7 +23,7 @@ mkSt'' e n psis = ms seeds
                    art=0.0}
             | (i, p) <- zip [1..n] psis]
 
-mdSimpl e psis =
+mdSimpl e n psis =
     Model
     { rules =
         [ dev
@@ -33,7 +33,7 @@ mdSimpl e psis =
         , devfp
         , transfp
         ]
-    , initState = mkSt'' e 2 psis
+    , initState = mkSt'' e n psis
     }
 
 writeOut nms fout tobss = writeFile fout (unlines rows)
@@ -41,6 +41,15 @@ writeOut nms fout tobss = writeFile fout (unlines rows)
     header = "time" ++ "," ++ intercalate "," nms
     rows = header : [show t ++ ","  ++ showr obs | (t, obs) <- tobss]
     showr obss = intercalate "," $ map show obss
+
+tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
+tsample _ [] = []
+tsample [] _ = []
+tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
+tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
+    | ts1 < t1 = (ts1, v1) : tsample tss tv
+    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
+    | ts1 >= t2 = tsample ts tvs
 
 gop obss tss fout md = do
   rgen <- R.getStdGen
@@ -51,6 +60,13 @@ gop obss tss fout md = do
   let tobss = (flip applyObs obssF) traj
   let stobss = (tsample tss) tobss
   writeOut obsNms fout stobss
+
+nseeds = Observable { gen=countM . select isSeed, name ="nseeds" }
+nplants = Observable { gen = countM . select isEPlant, name="nplants"}
+nfplants = Observable { gen = countM . select isFPlant, name = "nfplants"}
+
+showEnv :: Env -> String
+showEnv e = "d" ++ show (psim e) ++ "_" ++ "r" ++ show (frepr e)
 
 mkEvent :: Rxn Agent -> Maybe (Int, LifeEvent)
 mkEvent Rxn{lhs=[(Seed{attr=atr}, 1)], rhs=[(EPlant{}, 1)]} = Just (ind atr, Germ)
@@ -73,43 +89,39 @@ gopEvents fout tend md = do
             takeWhile
                 (\s -> getT s < tend)
                 (simulate rgen (rules md) (initState md))
-    let events = catMaybes (map collectEvent traj)
+    let n = length (initState md)
+    let initEvents =
+            [ Event
+             { timeE = 0.0
+             , pid = i
+             , typeE = SeedSet
+             , nSeeds = n
+             , nPlants = 0
+             , nFPlants = 0
+             }
+            | i <- [1 .. n] ]
+    let events = initEvents ++ (catMaybes (map collectEvent traj))
     B.writeFile fout (encodeDefaultOrderedByName events)
 
-tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
-tsample _ [] = []
-tsample [] _ = []
-tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
-tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
-    | ts1 < t1 = (ts1, v1) : tsample tss tv
-    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
-    | ts1 >= t2 = tsample ts tvs
-
-nseeds = Observable { gen=countM . select isSeed, name ="nseeds" }
-nplants = Observable { gen = countM . select isEPlant, name="nplants"}
-nfplants = Observable { gen = countM . select isFPlant, name = "nfplants"}
+gopEventsEnv :: Int -> FilePath -> Time -> Env -> IO ()
+gopEventsEnv n bfout tend e = do
+    let fout = bfout ++ "_" ++ (showEnv e) ++ ".txt"
+        pfout = bfout ++ "_" ++ "psis" ++ (showEnv e) ++ ".txt"
+    print $ showEnv e
+    psis <- normalsIO' (psim e, 1.0)
+    writeFile pfout (unlines (map show $ take n psis))
+    gopEvents fout (60 * 365 * 24) (mdSimpl e n (take n psis))
 
 main = do
-    psis <- normalsIO
+    let n = 20
+        tend = (60 * 365 * 24)
+        bfout = "out/lifeExpsVal/outEventsTest"
     print "running..."
-    -- gop
-    --     [nseeds, nplants, nfplants]
-    --     [0,24 .. 60 * 365 * 24]
-    --     "out/lifeExpsVal/outNsL.txt"
-    --     (mdSimpl
-    --          (Env
-    --           { psim = 0.0
-    --           , frepr = 0.737
-    --           })
-    --          (take 2 psis))
-
-    
-    gopEvents
-        "out/lifeExpsVal/outEventsL.txt"
-        (60 * 365 * 24)
-        (mdSimpl
-             (Env
-              { psim = 0.0
-              , frepr = 0.737
-              })
-             (take 2 psis))
+    mapM_
+        (gopEventsEnv n bfout tend)
+        [ Env
+         { psim = p
+         , frepr = f
+         }
+        | p <- [0.0, 2.5]
+        , f <- [0.598, 0.737] ]
