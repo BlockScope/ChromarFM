@@ -37,49 +37,45 @@ codeName Halle = "Hal"
 codeName Oulu = "Oul"
 codeName Valencia = "Val"
 
-fLoc :: Location -> String
-fLoc loc = fname (codeName loc)
-  where
-    fname nm = "../out/lifeExps" ++ nm ++ "/outEventsLL.txt" :: String
+isNSSet Event{typeE=Flower} = True
+isNSSet Event{typeE=Germ} = True
+isNSSet _ = False
 
-isNGerm Event{typeE=Flower} = True
-isNGerm Event{typeE=SeedSet} = True
-isNGerm _ = False
-
-{- we should add a phantom type to keep track of the time + type parameter for time -}
+{-
+  we should add a phantom type to keep track of the
+  time + type parameter for time
+-}
 data Lifecycle = Lifecycle
     { pidL :: Int
+    , pssetT :: Double
     , germT :: Double
     , flowerT :: Double
     , ssetT :: Double
-    }
-
-instance Show Lifecycle where
-    show Lifecycle { pidL = p
-                   , germT = gt
-                   ,flowerT = ft
-                   ,ssetT = st} =
-        show gt ++ " " ++ show ft ++ " " ++ show st
+    } deriving Show
 
 toDay :: Lifecycle -> Lifecycle
 toDay Lifecycle {pidL=p
+                , pssetT = pst      
                 ,germT = gt
                 ,flowerT = ft
                 ,ssetT = st} =
     Lifecycle
     { pidL = p
+    , pssetT = getDayYear pst         
     , germT = getDayYear gt
     , flowerT = getDayYear ft
     , ssetT = getDayYear st
     }
 
 toWeek :: Lifecycle -> Lifecycle
-toWeek Lifecycle {pidL=p
-                ,germT = gt
-                ,flowerT = ft
-                ,ssetT = st} =
+toWeek Lifecycle {pidL = p
+                 ,pssetT = pst
+                 ,germT = gt
+                 ,flowerT = ft
+                 ,ssetT = st} =
     Lifecycle
     { pidL = p
+    , pssetT = fromIntegral $ truncate (pst / 7)
     , germT = fromIntegral $ truncate (gt / 7)
     , flowerT = fromIntegral $ truncate (ft / 7)
     , ssetT = fromIntegral $ truncate (st / 7)
@@ -87,17 +83,20 @@ toWeek Lifecycle {pidL=p
 
 eqTiming :: Lifecycle -> Lifecycle -> Bool
 eqTiming Lifecycle {germT = gt
+                   ,pssetT = pst
                    ,flowerT = ft
-                   ,ssetT = st} Lifecycle {germT = gt'
+                   ,ssetT = st} Lifecycle {pssetT = pst'
+                                          ,germT = gt'
                                           ,flowerT = ft'
                                           ,ssetT = st'} =
-    (gt == gt') && (ft == ft') && (st == st')
+    (gt == gt') && (ft == ft') && (st == st') && (pst == pst')
 
 {- most occured lifecycles with weekly granularity -}
 mostOccured :: [Lifecycle] -> Lifecycle
 mostOccured ls =
     Lifecycle
     { pidL = 0
+    , pssetT = mocc pssetT         
     , germT = mocc germT
     , flowerT = mocc flowerT
     , ssetT = mocc ssetT
@@ -133,14 +132,15 @@ mkHistogram c vals =
         (  plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
            plot_hist_values .~ vals $ def)
 
-plotLines plots = renderableToFile def fout chart
+plotHists fout xtitle plots = renderableToFile def fout chart
   where
-    fout = "plot.png"
     layout = layout_plots .~ plots
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_title .~ xtitle
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title .~ "counts"
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
 
@@ -164,7 +164,7 @@ dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
     yrHours = fromIntegral (n * 365*24)
 
 dropYrsE :: Int -> [Event] -> [Event]
-dropYrsE n es = dropWhile isNGerm (dropWhile (\e -> timeE e < yrHours) es)
+dropYrsE n es = dropWhile isNSSet (dropWhile (\e -> timeE e < yrHours) es)
   where
     yrHours = fromIntegral (n * 365*24)
 
@@ -208,15 +208,20 @@ goAvgYearWrite fout ps =
     tplants = avgYear (dropYrs 15 . extractTSeries nPlants tss $ ps)
     tfplants = avgYear (dropYrs 15 . extractTSeries nFPlants tss $ ps)
 
-getLifecycles :: [Event] -> [Lifecycle]
-getLifecycles es = map length (chunksOf 3 es)
-  where
-    length [Event{timeE=t, pid=i, typeE=Germ},
-            Event{timeE=t1, typeE=Flower},
-            Event{timeE=t2, typeE=SeedSet}] =
-      Lifecycle { pidL =i, germT = t, flowerT=t1, ssetT = t2}
-    length _ = Lifecycle {pidL=0, germT=0, flowerT=0, ssetT=0}
+mkLifecycle :: [Event] -> [Event] -> Maybe Lifecycle
+mkLifecycle [Event{timeE=t, pid=i, typeE=SeedSet},
+             Event{timeE=t1, typeE=Germ},
+             Event{timeE=t2, typeE=Flower}] (Event{timeE=t3, typeE=SeedSet}:ess2) =
+  Just (Lifecycle {pidL =i, pssetT=t, germT=t1, flowerT=t2, ssetT=t3})
+mkLifecycle _ _ = Nothing
 
+collectLFs :: [[Event]] -> [Maybe Lifecycle]
+collectLFs [] = []
+collectLFs [es] = []
+collectLFs (es1:es2:ess) = mkLifecycle es1 es2 : collectLFs (es2:ess)
+
+getLifecycles :: [Event] -> [Lifecycle]
+getLifecycles es = catMaybes (collectLFs (chunksOf 3 es))
 
 groupById :: [Event] -> M.Map Int [Event]
 groupById es =
@@ -235,76 +240,24 @@ getLengths :: [Lifecycle] -> [Double]
 getLengths ls =
     [ len
     | life <- ls
-    , let len = ssetT life - germT life
+    , let len = ssetT life - pssetT life
     , len > 0 ]
 
 writeLengths :: FilePath -> [Double] -> IO ()
 writeLengths fout ls = writeFile fout (unlines $ map show ls)
 
-doAnalysis :: FilePath -> [Event] -> IO ()
-doAnalysis fp es = do
-    let lifeLengths = getLengths (getLifecycleDistr es)
-        avgYearFout = (dropExtension fp) ++ "AvgYear.txt"
-        lengthsFout = (dropExtension fp) ++ "Lengths.txt"
-    goAvgYearWrite avgYearFout es
-    writeLengths lengthsFout lifeLengths
-
-sortLFs :: (Lifecycle -> a) -> Double -> Double -> [Lifecycle] -> ([a], [a])
-sortLFs f t1 t2 ls = (livesF cond1, livesF cond2)
+sortLFs :: Double -> Double -> [Lifecycle] -> ([Lifecycle], [Lifecycle])
+sortLFs t1 t2 ls = (livesF cond1, livesF cond2)
   where
     cond1 t1 t2 = abs t1 < abs t2
     cond2 t1 t2 = abs t1 >= abs t2
     livesF cond =
-        [ f life
+        [ life
         | life <- ls
         , let len = ssetT life - germT life
         , let ct1 = len - t1
         , let ct2 = len - t2
         , cond ct1 ct2 ]
-
-getAvgLifecycle :: [Lifecycle] -> Lifecycle
-getAvgLifecycle ls =
-    Lifecycle
-    { pidL = 0
-    , germT = avg (map germT ls)
-    , flowerT = avg (map flowerT ls)
-    , ssetT = avg (map ssetT ls)
-    }
-
-getMedianLifecycle :: [Lifecycle] -> Lifecycle
-getMedianLifecycle ls =
-    Lifecycle
-    { pidL = 0
-    , germT = median (map germT ls)
-    , flowerT = median (map flowerT ls)
-    , ssetT = median (map ssetT ls)
-    }
-
-bimodalTest :: [Event] -> Time -> Time -> (Lifecycle, Lifecycle)
-bimodalTest es t1 t2 =
-    (toDay $ getMedianLifecycle ls1, toDay $ getMedianLifecycle ls2)
-  where
-    ls = getLifecycleDistr es
-    (ls1, ls2) = sortLFs id t1 t2 ls
-
-bimodalTest' :: [Event] -> Time -> Time -> M.Map Int Double -> [(Double, Int)]
-bimodalTest' es t1 t2 psis = rows ++ rows1
-  where
-    ls = filter (\l -> pidL l > 0) (getLifecycleDistr es)
-    (ls1, ls2) = sortLFs pidL t1 t2 ls
-    rows =
-        [ (psis M.! i, 1)
-        | i <- ls1 ]
-    rows1 =
-        [ (psis M.! i, 2)
-        | i <- ls2 ]
-
-writePsisDistr :: FilePath -> [(Double, Int)] -> IO ()
-writePsisDistr fout psis =
-    writeFile fout $
-    unlines
-        [ show p ++ " " ++ show i
-        | (p, i) <- psis ]
 
 getPsis :: [Double] -> M.Map Int Double
 getPsis psis =
@@ -326,21 +279,58 @@ readPsis :: FilePath -> IO (M.Map Int Double)
 readPsis fin = do
   psisS <- readFile fin
   return $ getPsis (map read (lines psisS))
-  
-main = do
-    args <- getArgs
-    let fin = args !! 0
-        pf = args !! 1
-    csvData <- BL.readFile fin
-    psis <- readPsis pf
-    events <- readEvents fin
-    doAnalysis fin events
 
+showEnv' (p, f) = "d" ++ show p ++ "_" ++ "r" ++ show f
 
--- print $ bimodalTest events (50 * 24) (220 * 24)
--- writePsisDistr
---     "../out/lifeExpsVal/psisModes.txt"
---     (bimodalTest' events (50 * 24) (220 * 24) psis)
+mkFName bfout loc e =
+    bfout ++ (codeName loc) ++ "/outEvents" ++ "_" ++ (showEnv' e) ++ ".txt"
 
--- doAnalysis fin (V.toList v)
--- print $ bimodalTest (V.toList v) (50*24) (220*24)          
+mkFOut bfout loc e =
+    bfout ++ (codeName loc) ++ "/outEvents" ++ "_" ++ (showEnv' e) ++ "AvgYear.txt"
+
+mkFOutPlot bfout loc e nm =
+    bfout ++ (codeName loc) ++ "/plots/" ++ nm ++ (showEnv' e) ++ ".png"
+
+doTimings :: FilePath -> IO ()
+doTimings bfout = mapM_ doTiming fnames
+  where
+    locs = [Norwich, Halle, Oulu, Valencia]
+    envs = [(p, f) | p <- [0.0, 2.5], f <- [0.598, 0.737]]
+    fnames = [(mkFName bfout loc (p, f), mkFOut bfout loc (p, f)) | loc <- locs, (p, f) <- envs]
+
+    doTiming (fin, fout) = readEvents fin >>= (\es -> goAvgYearWrite fout es)
+
+doLengthsHist (fin, fout) = do
+  es <- liftM groupById (readEvents fin)
+  let lives = M.foldr (++) [] (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) es)
+  let lens = map (/24) (getLengths lives)
+  plotHists fout "days" [mkHistogram blue lens]
+
+doNLivesHist (fin, fout) = do
+  es <- liftM groupById (readEvents fin)
+  let lives = M.map
+              (fromIntegral . length . getLifecycles . dropYrsE 15 . sortWith timeE)
+              es :: M.Map Int Double
+  plotHists fout "# of lifecycles (45 years)" [mkHistogram red (M.elems lives)]
+
+{- do histogram for lifecycle lengths
+   and # of lifecycles per location per genotype
+-}
+doHistograms :: FilePath -> IO ()
+doHistograms bfout = do
+    mapM_ doLengthsHist fnames
+    mapM_ doNLivesHist fnames'
+  where
+    locs = [Norwich, Halle, Oulu, Valencia]
+    envs =
+        [ (p, f)
+        | p <- [0.0, 2.5]
+        , f <- [0.598, 0.737] ]
+    fnames =
+        [ (mkFName bfout loc (p, f), mkFOutPlot bfout loc (p, f) "lengths")
+        | loc <- locs
+        , (p, f) <- envs ]
+    fnames' =
+        [ (mkFName bfout loc (p, f), mkFOutPlot bfout loc (p, f) "nLives")
+        | loc <- locs
+        , (p, f) <- envs ]
