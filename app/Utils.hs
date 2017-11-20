@@ -92,22 +92,13 @@ avgTraj i tobsss tss =
 
 runTT
     :: (Eq a)
-    => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]
+    => R.StdGen -> Int -> (State a -> Bool) -> Model a -> [[State a]]
 runTT gen n fb md
     | n == 0 = []
     | otherwise = traj : runTT rg2 (n - 1) fb md
   where
     (rg1, rg2) = R.split gen
-    traj = takeWhile (fb . getM) (simulate rg1 (rules md) (initState md))
-
-runUntil
-    :: (Ord a, Show a)
-    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
-runUntil Model {rules = rs
-               ,initState = s} fb fn obss = do
-    rgen <- R.getStdGen
-    let traj = takeWhile (fb . getM) (simulate rgen rs s)
-    writeObs fn obss traj
+    traj = takeWhile fb (simulate rg1 (rules md) (initState md))
 
 tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
 tsample _ [] = []

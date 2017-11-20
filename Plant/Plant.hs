@@ -337,8 +337,8 @@ dev =
 
 trans =
     [rule|
-        System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
-        System{germTimes=(time:gts)}, Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
+        Seed{mass=m, attr=atr, dg=d, art=a} -->
+        Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
         @log' d
   |]
 
@@ -464,8 +464,7 @@ eme =
   |]
 
 emeGerm =
-  [rule| System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
-         System{germTimes=(time:gts)},
+  [rule| Seed{mass=m, attr=atr, dg=d, art=a} -->
          EPlant{sdeg=calcSDeg si time, thrt=0.0, attr=atr, dg=0.0, wct=0.0},
          Leaf{attr=atr, i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
          Leaf{attr=atr, i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
@@ -486,9 +485,7 @@ leafD' =
 
 transp =
     [rule|
-        System{flowerTimes=fts, rosMass=rms},
         EPlant{attr=atr, dg=d, wct=w}, Root{attr=atr,m=m}, Cell{attr=atr,c=c, s=s'} -->
-        System{flowerTimes=(time:fts), rosMass=(leafMass:rms)},
         FPlant{attr=atr, dg=0.0}
         @logf' d
     |]
@@ -498,8 +495,7 @@ devfp =
 
 transfp =
     [rule|
-         System{ssTimes=ss}, FPlant{attr=atr, dg=d} -->
-         System{ssTimes=(time:ss)},
+         FPlant{attr=atr, dg=d} -->
          Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
          @logs' d
    |]
