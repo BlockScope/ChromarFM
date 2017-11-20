@@ -43,7 +43,7 @@ isNSSet _ = False
 
 {-
   we should add a phantom type to keep track of the
-  time + type parameter for time
+  unit for time + type parameter for time
 -}
 data Lifecycle = Lifecycle
     { pidL :: Int
@@ -103,7 +103,7 @@ mostOccured ls =
     }
   where
     lsw = map (toWeek . toDay) ls
-    mocc f = (head . fst) $ 
+    mocc f = (head . fst) 
         (maximumBy
             compCounts
             [ (g, length g)
@@ -156,7 +156,7 @@ avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
     in (realToFrac t / realToFrac n)
 
-median l = (sort l) !! (length l `quot` 2)
+median l = sort l !! (length l `quot` 2)
 
 dropYrs :: Int -> TSeries Int -> TSeries Int
 dropYrs n ts = dropWhile (\(t, _) -> t < yrHours) ts
@@ -194,7 +194,7 @@ precondition is not checked
 writeOut fout nms (ts1, ts2, ts3) = writeFile fout (unlines rows)
   where
     catc t v1 v2 v3 = intercalate "," (map show [t, v1, v2, v3])
-    header = "time" ++ "," ++ (intercalate "," nms)
+    header = "time" ++ "," ++ intercalate "," nms
     rows =
         header :
         [ catc t v1 v2 v3
@@ -212,7 +212,7 @@ mkLifecycle :: [Event] -> [Event] -> Maybe Lifecycle
 mkLifecycle [Event{timeE=t, pid=i, typeE=SeedSet},
              Event{timeE=t1, typeE=Germ},
              Event{timeE=t2, typeE=Flower}] (Event{timeE=t3, typeE=SeedSet}:ess2) =
-  Just (Lifecycle {pidL =i, pssetT=t, germT=t1, flowerT=t2, ssetT=t3})
+  Just Lifecycle {pidL =i, pssetT=t, germT=t1, flowerT=t2, ssetT=t3}
 mkLifecycle _ _ = Nothing
 
 collectLFs :: [[Event]] -> [Maybe Lifecycle]
@@ -282,16 +282,18 @@ readPsis fin = do
 
 showEnv' (p, f) = "d" ++ show p ++ "_" ++ "r" ++ show f
 
-mkFNamePsis bfout loc e = bfout ++ (codeName loc) ++ "/outEventsH_psis" ++ (showEnv' e) ++ ".txt"
+mkFNamePsis bfout loc e =
+    bfout ++ codeName loc ++ "/outEventsH_psis" ++ showEnv' e ++ ".txt"
 
 mkFName bfout loc e =
-    bfout ++ (codeName loc) ++ "/outEvents" ++ "_" ++ (showEnv' e) ++ ".txt"
+    bfout ++ codeName loc ++ "/outEventsH" ++ "_" ++ showEnv' e ++ ".txt"
 
 mkFOut bfout loc e =
-    bfout ++ (codeName loc) ++ "/outEvents" ++ "_" ++ (showEnv' e) ++ "AvgYear.txt"
+    bfout ++
+    codeName loc ++ "/outEvents" ++ "_" ++ showEnv' e ++ "AvgYear.txt"
 
 mkFOutPlot bfout loc e nm =
-    bfout ++ (codeName loc) ++ "/plots/" ++ nm ++ (showEnv' e) ++ ".png"
+    bfout ++ codeName loc ++ "/plots/" ++ nm ++ showEnv' e ++ ".png"
 
 doTimings :: FilePath -> IO ()
 doTimings bfout = mapM_ doTiming fnames
@@ -303,13 +305,13 @@ doTimings bfout = mapM_ doTiming fnames
     doTiming (fin, fout) = readEvents fin >>= (\es -> goAvgYearWrite fout es)
 
 doLengthsHist (fin, fout) = do
-  es <- liftM groupById (readEvents fin)
+  es <- fmap groupById (readEvents fin)
   let lives = M.foldr (++) [] (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) es)
   let lens = map (/24) (getLengths lives)
   plotHists fout "days" [mkHistogram blue lens]
 
 doNLivesHist (fin, fout) = do
-  es <- liftM groupById (readEvents fin)
+  es <- fmap groupById (readEvents fin)
   let lives = M.map
               (fromIntegral . length . getLifecycles . dropYrsE 15 . sortWith timeE)
               es :: M.Map Int Double
@@ -348,18 +350,17 @@ vegSeasonLength lives = avg [flowerT l - germT l | l <- lives]
 vegSeasonFile :: FilePath -> IO ()
 vegSeasonFile fp = do
     print fp
-    events <- liftM groupById (readEvents fp)
+    events <- fmap groupById (readEvents fp)
     let lives =
             M.foldr
                 (++)
                 []
                 (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) events)
     print $ median (map (getDayYear . germT) lives)
-    print $ (vegSeasonLength lives / 24)
+    print $ vegSeasonLength lives / 24
 
 doVegSeason :: FilePath -> IO ()
-doVegSeason bfout = do
-  mapM_ vegSeasonFile fnames
+doVegSeason bfout = mapM_ vegSeasonFile fnames
   where
     locs = [Valencia, Oulu, Halle, Norwich]
     envs = [(p, f) | p <- [0.0, 2.5], f <- [0.598, 0.737]]
