@@ -55,6 +55,6 @@ executable fmLife
                      vector,
                      bytestring,
                      set-monad,
-                     split
-		     
+                     split,
+                     filepath
   default-language:    Haskell2010
