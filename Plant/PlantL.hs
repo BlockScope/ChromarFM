@@ -34,6 +34,7 @@ logs' t =
         else 0.0
 
 thrmFinal = 2604
+tp = 1.0
 
 $(return [])
 
@@ -41,36 +42,36 @@ $(return [])
 
 dev =
     [rule| Seed{attr=atr, dg=d, art=a} -->
-           Seed{attr=atr, dg = d + 1*(htu time a (psi atr)), art=a + 1*(arUpd moist temp)}
-           @1.0/1.0
+           Seed{attr=atr, dg = d + tp*(htu time a (psi atr)), art=a + tp*(arUpd moist temp)}
+           @1.0/tp
    |]
 
 germ =
   [rule| Seed{mass=m, attr=atr, dg=d, art=a} -->
-         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d / 1.0
+         EPlant{sdeg=0.0, thrt=0.0, attr=atr, dg=0.0, wct=0.0} @log' d / tp
   |]
 
 devep =
     [rule| EPlant{attr=atr, thrt=tt, dg=d, wct=w} -->
            EPlant{attr=atr, thrt=tt+(temp / 1.0),
-                  dg=d+1*ptu* fp (wcUpd time w) (fi atr), wct=1*wcUpd time w}
-           @1.0/1.0 |]
+                  dg=d+tp*ptu* fp (wcUpd time w) (fi atr), wct=tp*wcUpd time w}
+           @1.0/tp |]
 
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w} -->
         FPlant{attr=atr, dg=0.0}
-        @logf' d/1.0
+        @logf' d/tp
     |]
     
 devfp =
-    [rule| FPlant{dg=d} --> FPlant{dg=d+1.0*disp} @1.0/1.0 |]
+    [rule| FPlant{dg=d} --> FPlant{dg=d+tp*disp} @1.0/tp |]
 
 transfp =
     [rule|
          FPlant{attr=atr, dg=d} -->
          Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
-         @logs' d/1.0
+         @logs' d/tp
    |]
 
 ----------
