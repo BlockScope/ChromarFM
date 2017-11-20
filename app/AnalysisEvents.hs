@@ -282,6 +282,8 @@ readPsis fin = do
 
 showEnv' (p, f) = "d" ++ show p ++ "_" ++ "r" ++ show f
 
+mkFNamePsis bfout loc e = bfout ++ (codeName loc) ++ "/outEventsH_psis" ++ (showEnv' e) ++ ".txt"
+
 mkFName bfout loc e =
     bfout ++ (codeName loc) ++ "/outEvents" ++ "_" ++ (showEnv' e) ++ ".txt"
 
@@ -334,3 +336,47 @@ doHistograms bfout = do
         [ (mkFName bfout loc (p, f), mkFOutPlot bfout loc (p, f) "nLives")
         | loc <- locs
         , (p, f) <- envs ]
+
+vegSeason :: [Lifecycle] -> (Time, Time)
+vegSeason lives = (avgT germT lives, avgT flowerT lives)
+  where
+    avgT f ls = avg [f l | l <- ls]
+
+vegSeasonLength :: [Lifecycle] -> Time
+vegSeasonLength lives = avg [flowerT l - germT l | l <- lives] 
+
+vegSeasonFile :: FilePath -> IO ()
+vegSeasonFile fp = do
+    print fp
+    events <- liftM groupById (readEvents fp)
+    let lives =
+            M.foldr
+                (++)
+                []
+                (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) events)
+    print $ median (map (getDayYear . germT) lives)
+    print $ (vegSeasonLength lives / 24)
+
+doVegSeason :: FilePath -> IO ()
+doVegSeason bfout = do
+  mapM_ vegSeasonFile fnames
+  where
+    locs = [Valencia, Oulu, Halle, Norwich]
+    envs = [(p, f) | p <- [0.0, 2.5], f <- [0.598, 0.737]]
+    fnames = [mkFName bfout loc (p, f) | loc <- locs, (p, f) <- envs]
+
+doPsis :: FilePath -> IO ()
+doPsis bfout = mapM_ plotPsis fnames
+  where
+    locs = [Valencia, Oulu, Halle, Norwich]
+    envs =
+        [ (p, f)
+        | p <- [0.0, 2.5]
+        , f <- [0.598, 0.737] ]
+    fnames =
+        [ (mkFNamePsis bfout loc (p, f), mkFOutPlot bfout loc (p, f) "psisH")
+        | loc <- locs
+        , (p, f) <- envs ]
+    plotPsis (fin, fout) =
+        readPsis fin >>=
+        (\mpsi -> plotHists fout "psi" [mkHistogram green (M.elems mpsi)])
