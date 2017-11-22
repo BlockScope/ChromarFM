@@ -5,7 +5,7 @@ module AnalysisEvents where
 import Types
 import Control.Applicative
 import Control.Monad
-import Control.Lens hiding (at)
+import Control.Lens hiding (at, (.>), (|>))
 import qualified Data.ByteString.Lazy as BL
 import Data.Colour
 import Data.Colour.Names
@@ -23,6 +23,24 @@ import Data.Maybe
 import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
+
+
+{- sometimes it's nicer to use these operators when doing data transformations
+as it looks more natural to write M.map (sortWith timeE .> dropYrsE 15 .> getLifecycels)
+and write the operations in the order that they happen (from left to right)
+ -}
+infixl 9 .>
+(.>) :: (a -> b) -> (b -> c) -> (a -> c)
+f .> g = compose f g
+
+(|>) :: a -> (a -> b) -> b
+x |> f = apply x f
+
+apply :: a -> (a -> b) -> b
+apply x f = f x
+
+compose :: (a -> b) -> (b -> c) -> (a -> c)
+compose f g = \ x -> g (f x)
 
 data Location
     = Norwich
@@ -53,20 +71,6 @@ data Lifecycle = Lifecycle
     , ssetT :: Double
     } deriving Show
 
-toDay :: Lifecycle -> Lifecycle
-toDay Lifecycle {pidL=p
-                , pssetT = pst      
-                ,germT = gt
-                ,flowerT = ft
-                ,ssetT = st} =
-    Lifecycle
-    { pidL = p
-    , pssetT = getDayYear pst         
-    , germT = getDayYear gt
-    , flowerT = getDayYear ft
-    , ssetT = getDayYear st
-    }
-
 toWeek :: Lifecycle -> Lifecycle
 toWeek Lifecycle {pidL = p
                  ,pssetT = pst
@@ -91,33 +95,11 @@ eqTiming Lifecycle {germT = gt
                                           ,ssetT = st'} =
     (gt == gt') && (ft == ft') && (st == st') && (pst == pst')
 
-{- most occured lifecycles with weekly granularity -}
-mostOccured :: [Lifecycle] -> Lifecycle
-mostOccured ls =
-    Lifecycle
-    { pidL = 0
-    , pssetT = mocc pssetT         
-    , germT = mocc germT
-    , flowerT = mocc flowerT
-    , ssetT = mocc ssetT
-    }
-  where
-    lsw = map (toWeek . toDay) ls
-    mocc f = (head . fst) 
-        (maximumBy
-            compCounts
-            [ (g, length g)
-            | g <- group (sort $ map f lsw) ])
-
 compCounts :: (a, Int) -> (a, Int) -> Ordering
 compCounts (_, n) (_, m)
   | n > m = GT
   | n == m = EQ
   | n < m = LT           
-
-toDayL = map toDay
-
-toWeekL = map toWeek
 
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
@@ -220,8 +202,8 @@ collectLFs [] = []
 collectLFs [es] = []
 collectLFs (es1:es2:ess) = mkLifecycle es1 es2 : collectLFs (es2:ess)
 
-getLifecycles :: [Event] -> [Lifecycle]
-getLifecycles es = catMaybes (collectLFs (chunksOf 3 es))
+getLfs :: [Event] -> [Lifecycle]
+getLfs es = catMaybes (collectLFs (chunksOf 3 es))
 
 groupById :: [Event] -> M.Map Int [Event]
 groupById es =
@@ -230,21 +212,21 @@ groupById es =
         [ (pid e, [e])
         | e <- es ]
 
-getLifecycleDistr :: [Event] -> [Lifecycle]
-getLifecycleDistr es = M.foldr (++) [] lifesId
+getLfDistr :: [Event] -> [Lifecycle]
+getLfDistr es =
+    M.foldr (++) [] (M.map (sortWith timeE .> dropYrsE 15 .> getLfs) es')
   where
-    sortedEvents = M.map (sortWith timeE) (groupById es)
-    lifesId = M.map getLifecycles sortedEvents
+    es' = groupById es
 
-getLengths :: [Lifecycle] -> [Double]
-getLengths ls =
+getLens :: [Lifecycle] -> [Double]
+getLens ls =
     [ len
     | life <- ls
     , let len = ssetT life - pssetT life
     , len > 0 ]
 
-writeLengths :: FilePath -> [Double] -> IO ()
-writeLengths fout ls = writeFile fout (unlines $ map show ls)
+writeLens :: FilePath -> [Double] -> IO ()
+writeLens fout ls = writeFile fout (unlines $ map show ls)
 
 sortLFs :: Double -> Double -> [Lifecycle] -> ([Lifecycle], [Lifecycle])
 sortLFs t1 t2 ls = (livesF cond1, livesF cond2)
@@ -254,7 +236,7 @@ sortLFs t1 t2 ls = (livesF cond1, livesF cond2)
     livesF cond =
         [ life
         | life <- ls
-        , let len = ssetT life - germT life
+        , let len = ssetT life - pssetT life
         , let ct1 = len - t1
         , let ct2 = len - t2
         , cond ct1 ct2 ]
@@ -283,7 +265,7 @@ readPsis fin = do
 showEnv' (p, f) = "d" ++ show p ++ "_" ++ "r" ++ show f
 
 mkFNamePsis bfout loc e =
-    bfout ++ codeName loc ++ "/outEventsH_psis" ++ showEnv' e ++ ".txt"
+    bfout ++ codeName loc ++ "/outEvents_psis" ++ showEnv' e ++ ".txt"
 
 mkFName bfout loc e =
     bfout ++ codeName loc ++ "/outEventsH" ++ "_" ++ showEnv' e ++ ".txt"
@@ -305,15 +287,14 @@ doTimings bfout = mapM_ doTiming fnames
     doTiming (fin, fout) = readEvents fin >>= (\es -> goAvgYearWrite fout es)
 
 doLengthsHist (fin, fout) = do
-  es <- fmap groupById (readEvents fin)
-  let lives = M.foldr (++) [] (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) es)
-  let lens = map (/24) (getLengths lives)
+  lives <- fmap getLfDistr (readEvents fin)
+  let lens = map (/24) (getLens lives)
   plotHists fout "days" [mkHistogram blue lens]
 
 doNLivesHist (fin, fout) = do
   es <- fmap groupById (readEvents fin)
   let lives = M.map
-              (fromIntegral . length . getLifecycles . dropYrsE 15 . sortWith timeE)
+              (fromIntegral . length . getLfs . dropYrsE 15 . sortWith timeE)
               es :: M.Map Int Double
   plotHists fout "# of lifecycles (45 years)" [mkHistogram red (M.elems lives)]
 
@@ -339,28 +320,30 @@ doHistograms bfout = do
         | loc <- locs
         , (p, f) <- envs ]
 
-vegSeason :: [Lifecycle] -> (Time, Time)
-vegSeason lives = (avgT germT lives, avgT flowerT lives)
-  where
-    avgT f ls = avg [f l | l <- ls]
+vegSLen :: [Lifecycle] -> [Time]
+vegSLen lives = [flowerT l - germT l | l <- lives]
 
-vegSeasonLength :: [Lifecycle] -> Time
-vegSeasonLength lives = avg [flowerT l - germT l | l <- lives] 
+reprSLen :: [Lifecycle] -> [Time]
+reprSLen lives = [ssetT l - flowerT l | l <- lives]
 
-vegSeasonFile :: FilePath -> IO ()
-vegSeasonFile fp = do
+dormSLen lives = [germT l - pssetT l | l <- lives]
+
+vegF :: FilePath -> IO ()
+vegF fp = do
     print fp
-    events <- fmap groupById (readEvents fp)
-    let lives =
-            M.foldr
-                (++)
-                []
-                (M.map (getLifecycles . dropYrsE 15 . sortWith timeE) events)
-    print $ median (map (getDayYear . germT) lives)
-    print $ vegSeasonLength lives / 24
+    lives <- fmap getLfDistr (readEvents fp)
+    print $ avg (map (getDayYear . germT) lives)
+    print $ (avg $ vegSLen lives) / 24
 
-doVegSeason :: FilePath -> IO ()
-doVegSeason bfout = mapM_ vegSeasonFile fnames
+reprF :: FilePath -> IO ()
+reprF fp = do
+    print fp
+    lives <- fmap getLfDistr (readEvents fp)
+    print $ avg (map (getDayYear . flowerT) lives)
+    print $ (avg $ reprSLen lives) / 24
+
+doFiles :: FilePath -> (FilePath -> IO ()) -> IO ()
+doFiles bfout f = mapM_ f fnames
   where
     locs = [Valencia, Oulu, Halle, Norwich]
     envs = [(p, f) | p <- [0.0, 2.5], f <- [0.598, 0.737]]
@@ -381,3 +364,4 @@ doPsis bfout = mapM_ plotPsis fnames
     plotPsis (fin, fout) =
         readPsis fin >>=
         (\mpsi -> plotHists fout "psi" [mkHistogram green (M.elems mpsi)])
+
