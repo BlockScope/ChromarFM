@@ -17,8 +17,7 @@ import           Plant
 import qualified System.Random                          as R
 import           Utils
 import Params
-
-outDir = "out/fmliteExpsVal"
+import System.Environment
 
 mkSt' :: Multiset Agent
 mkSt' = ms
@@ -47,12 +46,14 @@ mdLite =
         , rootMaint
         , leafTransl
         , rootTransl
-        , devep
+        , devep  
         ]
     , initState = mkSt'
     }
 
-mainLite =
+
+mainLite :: FilePath -> Time -> IO ()
+mainLite outDir tend=
     goPlot
         5
         [ carbon
@@ -61,9 +62,13 @@ mainLite =
         , rootMass
         , nL
         ]
-        [0 .. 70*24]
+        [0 .. tend]
         outDir
         mdLite
-        (\s -> getT s < 69*24)
+        (\s -> getT s < tend)
 
-main = mainLite
+main = do
+  args <- getArgs
+  let outDir = args !! 0 :: FilePath
+      tend = read (args !! 1) :: Time
+  mainLite outDir tend
