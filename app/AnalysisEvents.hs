@@ -25,7 +25,6 @@ import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
 
-
 {- sometimes it's nicer to use these operators when doing data transformations
 as it looks more natural to write M.map (sortWith timeE .> dropYrsE 15 .> getLifecycels)
 and write the operations in the order that they happen (from left to right)
@@ -130,15 +129,16 @@ plotHists fout xtitle plots = renderableToFile def fout chart
 
     chart = toRenderable layout
 
-mkHist' :: (RealFrac a, PlotValue a) => Colour Double -> String -> [a] -> Layout a Int
-mkHist' c xtitle vals = layout
+mkHist' :: Colour Double -> String -> String -> [Double] -> Layout Double Int
+mkHist' c xtitle title vals = layout
   where
     plot =
         histToPlot
             (plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
              plot_hist_values .~ vals $
-             def)
+             def :: PlotHist Double Int)
     layout = layout_plots .~ [plot]
+           $ layout_title  .~ title
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0
