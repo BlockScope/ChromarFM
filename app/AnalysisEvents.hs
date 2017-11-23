@@ -17,7 +17,7 @@ import qualified Data.Map as M
 import qualified Data.Vector as V
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Grid
-import Graphics.Rendering.Chart.Backend.Cairo
+import Graphics.Rendering.Chart.Backend.Diagrams
 import System.Environment
 import Chromar.Fluent
 import Data.Maybe
@@ -115,7 +115,7 @@ mkHist c vals =
            plot_hist_values .~ vals $ def)
 
 {- plots histograms on top of each other -}
-plotHists fout xtitle plots = renderableToFile def fout chart
+plotHists fout xtitle plots = renderableToFile foptions fout chart
   where
     layout = layout_plots .~ plots
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
@@ -129,15 +129,17 @@ plotHists fout xtitle plots = renderableToFile def fout chart
 
     chart = toRenderable layout
 
-mkHist' :: Colour Double -> String -> String -> [Double] -> Layout Double Int
-mkHist' c xtitle title vals = layout
+    foptions = fo_size .~ (500,200) $ def
+
+mkHist' :: [Colour Double] -> String -> String -> [[Double]] -> Layout Double Int
+mkHist' cs xtitle title valss = layout
   where
-    plot =
+    plot c vals =
         histToPlot
             (plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
              plot_hist_values .~ vals $
              def :: PlotHist Double Int)
-    layout = layout_plots .~ [plot]
+    layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs valss]
            $ layout_title  .~ title
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
@@ -149,7 +151,17 @@ mkHist' c xtitle title vals = layout
            $ def
 
 {- plots histograms arranged on a grid -}
-plotHistsGrid fout x hists = renderableToFile def fout $ fillBackground def $ chart
+plotHistsGrid fout x hists = renderableToFile foptions fout $ fillBackground def $ chart
+  where
+    histsG = map layoutToGrid hists
+    fullGrid = aboveN (map besideN (chunksOf x histsG))
+
+    chart = gridToRenderable fullGrid
+
+    foptions = fo_size .~ (900,500) $ def
+
+{- plots histograms arranged on a grid -}
+plotHistsGridR x hists = fillBackground def $ chart
   where
     histsG = map layoutToGrid hists
     fullGrid = aboveN (map besideN (chunksOf x histsG))
@@ -309,9 +321,14 @@ doTimings :: FilePath -> IO ()
 doTimings bfout = mapM_ doTiming fnames
   where
     locs = [Norwich, Halle, Oulu, Valencia]
-    envs = [(p, f) | p <- [0.0, 2.5], f <- [0.598, 0.737]]
-    fnames = [(mkFName bfout loc (p, f), mkFOut bfout loc (p, f)) | loc <- locs, (p, f) <- envs]
-
+    envs =
+        [ (p, f)
+        | p <- [0.0, 2.5]
+        , f <- [0.598, 0.737] ]
+    fnames =
+        [ (mkFName bfout loc (p, f), mkFOut bfout loc (p, f))
+        | loc <- locs
+        , (p, f) <- envs ]
     doTiming (fin, fout) = readEvents fin >>= (\es -> goAvgYearWrite fout es)
 
 doLengthsHist (fin, fout) = do
@@ -392,4 +409,3 @@ doPsis bfout = mapM_ plotPsis fnames
     plotPsis (fin, fout) =
         readPsis fin >>=
         (\mpsi -> plotHists fout "psi" [mkHist green (M.elems mpsi)])
-
