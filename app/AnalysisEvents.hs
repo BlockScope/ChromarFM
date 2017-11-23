@@ -16,6 +16,7 @@ import Data.List
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import Graphics.Rendering.Chart
+import Graphics.Rendering.Chart.Grid
 import Graphics.Rendering.Chart.Backend.Cairo
 import System.Environment
 import Chromar.Fluent
@@ -108,12 +109,13 @@ flookupMDef def tvals =
 
 type TSeries a = [(Time, a)]
 
-mkHistogram :: (RealFrac a) => Colour Double -> [a] -> Plot a Int
-mkHistogram c vals =
+mkHist :: (RealFrac a) => Colour Double -> [a] -> Plot a Int
+mkHist c vals =
     histToPlot
         (  plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
            plot_hist_values .~ vals $ def)
 
+{- plots histograms on top of each other -}
 plotHists fout xtitle plots = renderableToFile def fout chart
   where
     layout = layout_plots .~ plots
@@ -127,6 +129,32 @@ plotHists fout xtitle plots = renderableToFile def fout chart
            $ def
 
     chart = toRenderable layout
+
+mkHist' :: (RealFrac a, PlotValue a) => Colour Double -> String -> [a] -> Layout a Int
+mkHist' c xtitle vals = layout
+  where
+    plot =
+        histToPlot
+            (plot_hist_fill_style . fill_color .~ (c `withOpacity` 0.1) $
+             plot_hist_values .~ vals $
+             def)
+    layout = layout_plots .~ [plot]
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_title .~ xtitle
+           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title .~ "counts"
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ def
+
+{- plots histograms arranged on a grid -}
+plotHistsGrid fout x hists = renderableToFile def fout $ fillBackground def $ chart
+  where
+    histsG = map layoutToGrid hists
+    fullGrid = aboveN (map besideN (chunksOf x histsG))
+
+    chart = gridToRenderable fullGrid
 
 getDayYear :: Double -> Double
 getDayYear time = fromIntegral dayYear
@@ -289,14 +317,14 @@ doTimings bfout = mapM_ doTiming fnames
 doLengthsHist (fin, fout) = do
   lives <- fmap getLfDistr (readEvents fin)
   let lens = map (/24) (getLens lives)
-  plotHists fout "days" [mkHistogram blue lens]
+  plotHists fout "days" [mkHist blue lens]
 
 doNLivesHist (fin, fout) = do
   es <- fmap groupById (readEvents fin)
   let lives = M.map
               (fromIntegral . length . getLfs . dropYrsE 15 . sortWith timeE)
               es :: M.Map Int Double
-  plotHists fout "# of lifecycles (45 years)" [mkHistogram red (M.elems lives)]
+  plotHists fout "# of lifecycles (45 years)" [mkHist red (M.elems lives)]
 
 {- do histogram for lifecycle lengths
    and # of lifecycles per location per genotype
@@ -363,5 +391,5 @@ doPsis bfout = mapM_ plotPsis fnames
         , (p, f) <- envs ]
     plotPsis (fin, fout) =
         readPsis fin >>=
-        (\mpsi -> plotHists fout "psi" [mkHistogram green (M.elems mpsi)])
+        (\mpsi -> plotHists fout "psi" [mkHist green (M.elems mpsi)])
 
