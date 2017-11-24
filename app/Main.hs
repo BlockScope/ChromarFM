@@ -51,24 +51,24 @@ mdLite =
     , initState = mkSt'
     }
 
-
 mainLite :: FilePath -> Time -> IO ()
-mainLite outDir tend=
+mainLite outDir dur=
     goPlot
-        5
+        10
         [ carbon
         , leafMass
         , starch
         , rootMass
         , nL
         ]
-        [0 .. tend]
+        [0 .. dur]
         outDir
         mdLite
-        (\s -> getT s < tend)
+        (\s -> getT s < dur)
 
 main = do
   args <- getArgs
   let outDir = args !! 0 :: FilePath
-      tend = read (args !! 1) :: Time
-  mainLite outDir tend
+      tstart = read (args !! 1) :: Time
+      tend = read (args !! 2) :: Time
+  mainLite outDir (tend - tstart)
