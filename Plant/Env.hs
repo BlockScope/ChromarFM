@@ -27,11 +27,11 @@ dataFile = "data/rad/weatherValencia2yrsRad.csv"
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))
 
-temp' = shift (262*24) (repeatEvery 17520 (unsafePerformIO (readTable dataFile 4)))
-photo' = shift (262*24) (repeatEvery 17520 (unsafePerformIO (readTable dataFile 2)))
-day' = shift (262*24) (repeatEvery 17520 (unsafePerformIO (readTable dataFile 3)))
-moist = shift (262*24) (repeatEvery 17520 (unsafePerformIO (readTable dataFile 5)))
-par = shift (262*24) (repeatEvery 17520 (unsafePerformIO (readTable dataFile 6)))
+temp' = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 4)))
+photo' = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 2)))
+day' = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 3)))
+moist = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 5)))
+par = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 6)))
 day  = day' <>*> constant 0.0
 
 -- sunrise = 6
@@ -173,3 +173,4 @@ readTable fn n = do
   return $ flookupM (Map.fromList vals)
 
 ------
+
