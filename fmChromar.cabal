@@ -42,6 +42,7 @@ executable fmLife
                      text >= 1.2,
                      Chart,
                      Chart-cairo,
+                     Chart-diagrams,     
                      containers >=0.5,
                      coloured-petri-nets,
                      normaldistribution >= 1.1,
