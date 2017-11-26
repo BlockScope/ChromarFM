@@ -42,6 +42,31 @@ apply x f = f x
 compose :: (a -> b) -> (b -> c) -> (a -> c)
 compose f g = \ x -> g (f x)
 
+data Env = Env { te :: Int,
+                 temp :: Double,
+                 moist :: Double,
+                 par :: Double,
+                 photo :: Double } deriving (Show)
+
+instance FromRecord Env where
+    parseRecord v
+        | length v == 7 = Env <$> v.! 0 <*> v .! 4 <*> v .! 5 <*> v .! 6 <*> v .! 2
+        | otherwise = mzero
+
+avgEnv :: [Env] -> Env
+avgEnv envs = Env { te = te (head envs),
+                    temp = avg (map temp envs),
+                    moist = avg (map moist envs),
+                    par = avg (map par envs),
+                    photo = avg (map photo envs) }
+
+readWeather :: FilePath -> IO ([Env])
+readWeather fin = do
+  csvData <- BL.readFile fin
+  case decode NoHeader csvData of
+    Left err -> error err
+    Right v -> return $ V.toList v
+
 data Location
     = Norwich
     | Halle
@@ -150,6 +175,26 @@ mkHist' cs xtitle title valss = layout
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
 
+mkLine' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
+mkLine' cs ytitle title tvalss = layout
+  where
+    plot c tvals =
+        toPlot
+            (  plot_lines_values .~ [tvals]
+             $ plot_lines_style . line_color .~ (c `withOpacity` 0.9)
+             $ plot_lines_style . line_width .~ 2.0
+             $ def)
+    layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs tvalss]
+           $ layout_title  .~ title
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_title .~ "time (h)"
+           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title .~ ytitle
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ def
+
 {- plots histograms arranged on a grid -}
 plotHistsGrid fout x hists = renderableToFile foptions fout $ fillBackground def $ chart
   where
@@ -251,6 +296,20 @@ groupById es =
         (++)
         [ (pid e, [e])
         | e <- es ]
+
+hourToDay :: Int -> Int
+hourToDay h = truncate (fromIntegral h / 24.0)
+
+groupByDay :: ([Env] -> Env) -> [Env] -> [Env]
+groupByDay f es = sortWith te (M.elems esByDay)
+  where
+    esByDay =
+        (M.map
+             (sortWith te .> f)
+             (M.fromListWith
+                  (++)
+                  [ (hourToDay (te e), [e])
+                  | e <- es ]))
 
 getLfDistr :: [Event] -> [Lifecycle]
 getLfDistr es =
