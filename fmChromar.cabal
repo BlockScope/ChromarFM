@@ -58,7 +58,9 @@ executable fmLife
                      bytestring,
                      set-monad,
                      split,
-                     filepath
+                     filepath,
+                     hierarchical-clustering,
+                     kmeans-vector 		     
   default-language:    Haskell2010
 
 executable fmLite
