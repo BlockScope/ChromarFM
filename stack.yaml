@@ -8,4 +8,4 @@ packages:
 #     commit: 2e39c0449cd3ec6b37ebda24eab73ea3a765388e
 #   extra-dep: true
   
-extra-deps: [normaldistribution-1.1.0.3]
+extra-deps: [normaldistribution-1.1.0.3, kmeans-vector-0.3.2, probable-0.1.2]

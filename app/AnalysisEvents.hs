@@ -25,6 +25,8 @@ import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
 import Data.Clustering.Hierarchical
+import qualified Math.KMeans as K
+import qualified Data.Vector.Unboxed as UV
 
 {- sometimes it's nicer to use these operators when doing data transformations
 as it looks more natural to write M.map (sortWith timeE .> dropYrsE 15 .> getLifecycels)
@@ -135,11 +137,37 @@ compLfs Lifecycle {germT = gt
                                         ,ssetT = st'} =
     abs (gt - gt') + abs (ft - ft') + abs (st - st')
 
+compLfs' :: Lifecycle -> Lifecycle -> Double
+compLfs' Lifecycle {
+                   pssetT =pst
+                 , germT = gt
+                 ,flowerT = ft
+                 ,ssetT = st} Lifecycle {pssetT = pst',
+                                         germT = gt'
+                                        ,flowerT = ft'
+                                        ,ssetT = st'} =
+  abs (lenLf1 - lenLf2)
+  where
+    lenLf1 = st - pst
+    lenLf2 = st' - pst'
+
 clusterLfs lfs = dendrogram SingleLinkage lfs compLfs
 
+clusterLfs' lfs = dendrogram SingleLinkage lfs compLfs'
+
+clusterLfsK k lfs = map K.elements clusters
+  where
+    clusters =
+        (V.toList (K.kmeans (\lf -> UV.singleton (getLen lf)) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
+
 getAtLevel :: Int -> Dendrogram a -> [[a]]
+getAtLevel n (Leaf k) = [[k]]
 getAtLevel 0 d = [elements d]
 getAtLevel n (Branch _ d1 d2) = getAtLevel (n-1) d1 ++ getAtLevel (n-1) d2
+
+getD :: Dendrogram a -> Double
+getD (Leaf k) = 0.0
+getD (Branch d _ _) = d
 
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
@@ -332,12 +360,11 @@ getLfDistr es =
   where
     es' = groupById es
 
+getLen :: Lifecycle -> Double
+getLen lf = ssetT lf - pssetT lf
+
 getLens :: [Lifecycle] -> [Double]
-getLens ls =
-    [ len
-    | life <- ls
-    , let len = ssetT life - pssetT life
-    , len > 0 ]
+getLens ls = map getLen ls
 
 writeLens :: FilePath -> [Double] -> IO ()
 writeLens fout ls = writeFile fout (unlines $ map show ls)
