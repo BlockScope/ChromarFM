@@ -5,7 +5,7 @@ module AnalysisEvents where
 import Types
 import Control.Applicative
 import Control.Monad
-import Control.Lens hiding (at, (.>), (|>))
+import Control.Lens hiding (at, (.>), (|>), elements)
 import qualified Data.ByteString.Lazy as BL
 import Data.Colour
 import Data.Colour.Names
@@ -24,6 +24,7 @@ import Data.Maybe
 import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
+import Data.Clustering.Hierarchical
 
 {- sometimes it's nicer to use these operators when doing data transformations
 as it looks more natural to write M.map (sortWith timeE .> dropYrsE 15 .> getLifecycels)
@@ -124,7 +125,21 @@ compCounts :: (a, Int) -> (a, Int) -> Ordering
 compCounts (_, n) (_, m)
   | n > m = GT
   | n == m = EQ
-  | n < m = LT           
+  | n < m = LT
+
+compLfs :: Lifecycle -> Lifecycle -> Double
+compLfs Lifecycle {germT = gt
+                 ,flowerT = ft
+                 ,ssetT = st} Lifecycle {germT = gt'
+                                        ,flowerT = ft'
+                                        ,ssetT = st'} =
+    abs (gt - gt') + abs (ft - ft') + abs (st - st')
+
+clusterLfs lfs = dendrogram SingleLinkage lfs compLfs
+
+getAtLevel :: Int -> Dendrogram a -> [[a]]
+getAtLevel 0 d = [elements d]
+getAtLevel n (Branch _ d1 d2) = getAtLevel (n-1) d1 ++ getAtLevel (n-1) d2
 
 flookupMDef ::
     a -> M.Map Time a -> Fluent a
