@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module AnalysisEvents where
 
@@ -25,6 +26,7 @@ import Data.List.Split
 import GHC.Exts
 import System.FilePath.Posix
 import Data.Clustering.Hierarchical
+import GHC.Generics (Generic)
 import qualified Math.KMeans as K
 import qualified Data.Vector.Unboxed as UV
 
@@ -45,23 +47,33 @@ apply x f = f x
 compose :: (a -> b) -> (b -> c) -> (a -> c)
 compose f g = \ x -> g (f x)
 
-data Env = Env { te :: Int,
-                 temp :: Double,
-                 moist :: Double,
-                 par :: Double,
-                 photo :: Double } deriving (Show)
+data Env = Env
+    { te :: Int
+    , year :: Int
+    , photo :: Double
+    , day :: Double
+    , temp :: Double
+    , moist :: Double
+    } deriving (Generic, Show)
 
-instance FromRecord Env where
-    parseRecord v
-        | length v == 7 = Env <$> v.! 0 <*> v .! 4 <*> v .! 5 <*> v .! 6 <*> v .! 2
-        | otherwise = mzero
+instance FromRecord Env
+
+    --                    where
+    -- parseRecord v
+    --     | length v == 6 =
+    --         Env <$> v .! 0 <*> v .! 1 <*> v .! 2 <*> v .! 3 <*> v .! 4 <*>
+    --         v .! 5
+    --     | otherwise = mzero
+
+instance ToRecord Env
 
 avgEnv :: [Env] -> Env
 avgEnv envs = Env { te = te (head envs),
                     temp = avg (map temp envs),
                     moist = avg (map moist envs),
-                    par = avg (map par envs),
-                    photo = avg (map photo envs) }
+                    photo = avg (map photo envs),
+                    day= 1,
+                    year=2002}
 
 readWeather :: FilePath -> IO ([Env])
 readWeather fin = do
@@ -69,6 +81,9 @@ readWeather fin = do
   case decode NoHeader csvData of
     Left err -> error err
     Right v -> return $ V.toList v
+
+writeWeather :: FilePath -> [Env] -> IO ()
+writeWeather fout envs = BL.writeFile fout (encode envs)
 
 data Location
     = Norwich
