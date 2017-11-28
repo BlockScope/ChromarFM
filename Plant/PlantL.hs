@@ -34,7 +34,7 @@ logs' t =
         else 0.0
 
 thrmFinal = 2604
-tp = 1.0
+tp = 24.0
 
 $(return [])
 
@@ -54,7 +54,7 @@ germ =
 devep =
     [rule| EPlant{attr=atr, thrt=tt, dg=d, wct=w} -->
            EPlant{attr=atr, thrt=tt+(temp / 1.0),
-                  dg=d+tp*ptu* fp (wcUpd time w) (fi atr), wct=tp*wcUpd time w}
+                  dg=d+photo'*ptu* fp (wcUpd time w) (fi atr), wct=tp*wcUpd time w}
            @1.0/tp |]
 
 transp =
