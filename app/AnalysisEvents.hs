@@ -175,6 +175,11 @@ clusterLfsK k lfs = map K.elements clusters
     clusters =
         (V.toList (K.kmeans (\lf -> UV.singleton (getLen lf)) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
 
+clusterLfsK' k lfs = map K.elements clusters
+  where
+    clusters =
+        (V.toList (K.kmeans (\lf -> UV.fromList [germT lf, flowerT lf]) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
+
 getAtLevel :: Int -> Dendrogram a -> [[a]]
 getAtLevel n (Leaf k) = [[k]]
 getAtLevel 0 d = [elements d]
@@ -230,6 +235,23 @@ mkHist' cs xtitle title valss = layout
            $ layout_x_axis . laxis_title .~ xtitle
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
            $ layout_y_axis . laxis_title .~ "counts"
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ def
+
+mkPoints' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
+mkPoints' cs xtitle ytitle valss = layout
+  where
+    plot c vals = toPlot (plot_points_style .~ filledCircles 1 (opaque c)
+              $ plot_points_values .~ vals
+              $ def )   
+    layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs valss]
+           $ layout_title  .~ ""
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_title .~ xtitle
+           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
 
