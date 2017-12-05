@@ -17,7 +17,7 @@ declare -A fOutDirs=(["Val"]='out/fmLiteExpsVal'
 locFName="${fNms[$loc]}"
 outDir="${fOutDirs[$loc]}"
 
-sed "s/ENV/$locFName/" Plant/EnvTempl.hs | sed "s/ST/$startTime/" > Plant/Env.hs
+sed "s/ENV/$locFName/" Plant/EnvTempl.hs | sed "s/ST/$startTime/" > Plant/EnvT.hs
 stack build
 echo "compiled"
 echo "stack exec -- fmLite $outDir $startTime $endTime"
