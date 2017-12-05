@@ -33,7 +33,8 @@ import qualified Data.Vector.Unboxed as UV
 {- sometimes it's nicer to use these operators when doing data transformations
 as it looks more natural to write M.map (sortWith timeE .> dropYrsE 15 .> getLifecycels)
 and write the operations in the order that they happen (from left to right)
- -}
+-}
+
 infixl 9 .>
 (.>) :: (a -> b) -> (b -> c) -> (a -> c)
 f .> g = compose f g
@@ -57,13 +58,6 @@ data Env = Env
     } deriving (Generic, Show)
 
 instance FromRecord Env
-
-    --                    where
-    -- parseRecord v
-    --     | length v == 6 =
-    --         Env <$> v .! 0 <*> v .! 1 <*> v .! 2 <*> v .! 3 <*> v .! 4 <*>
-    --         v .! 5
-    --     | otherwise = mzero
 
 instance ToRecord Env
 
@@ -175,11 +169,11 @@ clusterLfsK k lfs = map K.elements clusters
     clusters =
         (V.toList (K.kmeans (\lf -> UV.singleton (getLen lf)) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
 
-clusterLfsK' k lfs = map K.elements clusters
+clusterLfsK'' k lfs = map K.elements clusters
   where
     clusters =
-        (V.toList (K.kmeans (\lf -> UV.fromList [germT lf, flowerT lf]) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
-
+        V.toList (K.kmeans (\lf -> UV.fromList [germD lf, vegSLenD lf]) K.euclidSq k lfs) :: [K.Cluster Lifecycle]
+                                                                                             
 getAtLevel :: Int -> Dendrogram a -> [[a]]
 getAtLevel n (Leaf k) = [[k]]
 getAtLevel 0 d = [elements d]
@@ -503,27 +497,33 @@ doHistograms bfout = do
         | loc <- locs
         , (p, f) <- envs ]
 
-vegSLen :: [Lifecycle] -> [Time]
-vegSLen lives = [flowerT l - germT l | l <- lives]
+vegSLen :: Lifecycle -> Time
+vegSLen lf = flowerT lf - germT lf
 
-reprSLen :: [Lifecycle] -> [Time]
-reprSLen lives = [ssetT l - flowerT l | l <- lives]
+vegSLens = map vegSLen
 
-dormSLen lives = [germT l - pssetT l | l <- lives]
+reprSLen :: Lifecycle -> Time
+reprSLen lf = ssetT lf - flowerT lf
+
+reprSLens = map reprSLen
+
+dormSLen lf = germT lf - pssetT lf
+
+dormSLens = map dormSLen
 
 vegF :: FilePath -> IO ()
 vegF fp = do
     print fp
     lives <- fmap getLfDistr (readEvents fp)
     print $ avg (map (getDayYear . germT) lives)
-    print $ (avg $ vegSLen lives) / 24
+    print $ (avg $ vegSLens lives) / 24
 
 reprF :: FilePath -> IO ()
 reprF fp = do
     print fp
     lives <- fmap getLfDistr (readEvents fp)
     print $ avg (map (getDayYear . flowerT) lives)
-    print $ (avg $ reprSLen lives) / 24
+    print $ (avg $ reprSLens lives) / 24
 
 doFiles :: FilePath -> (FilePath -> IO ()) -> IO ()
 doFiles bfout f = mapM_ f fnames
@@ -547,3 +547,40 @@ doPsis bfout = mapM_ plotPsis fnames
     plotPsis (fin, fout) =
         readPsis fin >>=
         (\mpsi -> plotHists fout "psi" [mkHist green (M.elems mpsi)])
+
+data Pair a = P a a
+
+instance Functor Pair where
+  fmap f (P x y) = P (f x) (f y)
+  
+inl :: Pair a -> a
+inl (P x _) = x
+
+inr :: Pair a -> a
+inr (P _ y) = y
+
+zipF :: (a -> b) -> (a -> c) -> a -> (b, c)
+zipF f1 f2 v = (f1 v, f2 v)
+
+germD = germT .> getDayYear
+flowerD = flowerT .> getDayYear
+ssetD = ssetT .> getDayYear
+
+germDs = map germD
+flowerDs = map flowerD
+ssetDs = map ssetD
+
+vegSLenD = vegSLen .> (/24)
+
+getLensD = map (getLen .> (/24))
+vegSLensD = map (vegSLen .> (/24))
+reprSLensD = map (reprSLen .> (/24))
+dormSLensD = map (dormSLen .> (/24))
+
+ratio :: Int -> Int -> Double
+ratio k m = fromIntegral k / fromIntegral (k + m )
+
+ratioN :: [Int] -> [Double]
+ratioN xs = map (/ (sum fxs)) fxs
+   where
+     fxs = map fromIntegral xs
