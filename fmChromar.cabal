@@ -8,7 +8,6 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-
 library
        build-depends:base,
                      random >=1.1 && <1.2,
@@ -30,7 +29,8 @@ library
                      Photo
                      Params
                      PlantL
-                     Plant   
+                     Plant
+                     EnvT
 		      
 executable fmLife
   hs-source-dirs:      app

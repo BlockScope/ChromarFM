@@ -8,7 +8,7 @@ import           Chromar
 import           Data.Fixed
 import           Data.List
 import           Data.Time.Calendar.MonthDay
-import           Env
+import           EnvT
 import           GHC.Exts
 import           GHC.Generics
 import           Params
@@ -22,7 +22,7 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-thrmFinal = 2604 --sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
+thrmFinal = 4150
 
 median :: [Int] -> Int
 median [] = 0
@@ -216,9 +216,9 @@ g m = gmax * (1/24.0)
     lc = m2c m
     gmax = 0.408 * lc
 
-tLDem=
+tLDem =
     Observable
-    { name = "totGrowth"
+    { name = "totLDemand"
     , gen =
         \s ->
              let tt =
@@ -229,7 +229,23 @@ tLDem=
                     [ ldem i ta tt
                     | (Leaf {ta = ta
                             ,m = m
-                            ,i = i}, _) <- s ])
+                            ,i = i}, _) <- s])
+    }
+
+tLDemI i =
+    Observable
+    { name = "totLDemand"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in (sum
+                    [ ldem i ta tt
+                    | (Leaf {ta = ta
+                            ,m = m
+                            ,i = is}, _) <- s, is==i])
     }
 
 tRDem =
@@ -319,6 +335,9 @@ leaf10Mass = Observable { name = "mass10",
 
 leaf12Mass = Observable { name = "mass12",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
+
+leaf18Mass = Observable { name = "mass18",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i ==18] }
 
 s2c s pp = (kStarch * s) / (24 - pp)
 
@@ -531,6 +550,9 @@ seedD = Observable { name = "seedD",
 
 thrtt = Observable { name = "thrtt",
                      gen = sumM thrt . select isEPlant }
+
+plantDev = Observable { name = "plantD",
+                        gen = sumM dg . select isEPlant }
 
 trdem =
     Observable
