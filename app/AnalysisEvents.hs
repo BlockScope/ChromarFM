@@ -169,7 +169,7 @@ clusterLfsK k lfs = map K.elements clusters
     clusters =
         (V.toList (K.kmeans (\lf -> UV.singleton (getLen lf)) K.euclidSq k lfs)) :: [K.Cluster Lifecycle]
 
-clusterLfsK'' k lfs = map K.elements clusters
+clusterLfsK' k lfs = map K.elements clusters
   where
     clusters =
         V.toList (K.kmeans (\lf -> UV.fromList [germD lf, vegSLenD lf]) K.euclidSq k lfs) :: [K.Cluster Lifecycle]
@@ -584,3 +584,6 @@ ratioN :: [Int] -> [Double]
 ratioN xs = map (/ (sum fxs)) fxs
    where
      fxs = map fromIntegral xs
+
+getTotalMass :: Int -> [(Double, Double)] -> Double
+getTotalMass n pms = sum [p*(fromIntegral n)*m | (p, m) <- pms]
