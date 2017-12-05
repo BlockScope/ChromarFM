@@ -113,9 +113,9 @@ gopEventsEnv n bfout tend e = do
     gopEvents fout (60 * 365 * 24) (mdSimpl e n (take n psis))
 
 main = do
-    let n = 20
+    let n = 100
         tend = (60 * 365 * 24)
-        bfout = "out/lifeExpsVal/outEventsTest"
+        bfout = "out/lifeExpsOul/outEvents"
     print "running..."
     mapM_
         (gopEventsEnv n bfout tend)
@@ -123,5 +123,4 @@ main = do
          { psim = p
          , frepr = f
          }
-        | p <- [0.0, 2.5]
-        , f <- [0.598, 0.737] ]
+        | p <- [0.0, 2.5], f <- [0.737, 0.598]]
