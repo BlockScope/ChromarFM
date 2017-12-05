@@ -46,7 +46,8 @@ mdLite =
         , rootMaint
         , leafTransl
         , rootTransl
-        , devep  
+        , devep
+        , leafD'  
         ]
     , initState = mkSt'
     }
@@ -54,12 +55,21 @@ mdLite =
 mainLite :: FilePath -> Time -> IO ()
 mainLite outDir dur=
     goPlot
-        10
+        5
         [ carbon
         , leafMass
         , starch
         , rootMass
         , nL
+        , plantDev
+        , thrtt
+        , leaf1Mass
+        , leaf5Mass
+        , leaf10Mass
+        , leaf18Mass  
+        , tLDemI 1
+        , tLDemI 18
+        , tRDem  
         ]
         [0 .. dur]
         outDir
