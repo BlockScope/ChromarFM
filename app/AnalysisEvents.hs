@@ -6,7 +6,7 @@ module AnalysisEvents where
 import Types
 import Control.Applicative
 import Control.Monad
-import Control.Lens hiding (at, (.>), (|>), elements)
+import Control.Lens hiding (at, (.>), (|>), elements, assign)
 import qualified Data.ByteString.Lazy as BL
 import Data.Colour
 import Data.Colour.Names
@@ -235,7 +235,7 @@ mkHist' cs xtitle title valss = layout
 mkPoints' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkPoints' cs xtitle ytitle valss = layout
   where
-    plot c vals = toPlot (plot_points_style .~ filledCircles 1 (opaque c)
+    plot c vals = toPlot (plot_points_style .~ filledCircles 1 (c `withOpacity` 0.6)
               $ plot_points_values .~ vals
               $ def )   
     layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs valss]
@@ -248,6 +248,10 @@ mkPoints' cs xtitle ytitle valss = layout
            $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
+
+mkAPoints :: [Colour Double] -> String -> String -> [[(Double, Double, Double)]] -> Layout Double Double
+
+mkAPoints = undefined
 
 mkLine' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkLine' cs ytitle title tvalss = layout
@@ -370,6 +374,10 @@ groupById es =
         (++)
         [ (pid e, [e])
         | e <- es ]
+
+groupByIdL :: [Lifecycle] -> M.Map Int [Lifecycle]
+groupByIdL ls =
+   M.fromListWith (++) [(pidL lf, [lf]) | lf <- ls]
 
 hourToDay :: Int -> Int
 hourToDay h = truncate (fromIntegral h / 24.0)
@@ -587,3 +595,72 @@ ratioN xs = map (/ (sum fxs)) fxs
 
 getTotalMass :: Int -> [(Double, Double)] -> Double
 getTotalMass n pms = sum [p*(fromIntegral n)*m | (p, m) <- pms]
+
+--- biomass game with more than 1 seed
+data Cluster = Cluster
+    { cid :: Int
+    , bmass :: Double
+    , len :: Double
+    , cgermD :: Double
+    , cvegLen :: Double
+    } deriving (Show)
+
+type Mass = Double
+
+assign :: [Cluster] -> Lifecycle -> Cluster
+assign cs lf =
+    head .> fst $
+    sortWith
+        snd
+        [ (c, dist lf c)
+        | c <- cs ]
+  where
+    dist lf c = euclDist (extract c) (extractL lf)
+
+breadthW :: Mass -> Double
+breadthW m
+    | m < 0.2 = 0.0
+    | otherwise = 1.0
+    
+logistic :: (Double, Double) -> Double -> Double
+logistic (k, x0) x = 1.0 / (1 + exp (-k*(x - x0)))
+
+getMassLineage :: [Cluster] -> (Mass -> Double) -> [Lifecycle] -> Mass
+getMassLineage cs f lfs = sum (zipWith (*) mss bss)
+  where
+    mss = map (assign cs .> bmass) lfs
+    bss = scanl (*) 1.0 (map f mss)
+
+getLineage :: [Cluster] -> [Lifecycle] -> [Lifecycle]
+getLineage cs lfs = map fst (takeWhile (\(lf, b) -> b > 0.0) (zip lfs bss))
+  where
+    mss = map (assign cs .> bmass .> breadthW) lfs
+    bss = scanl (*) 1.0 mss
+    
+lineages ess = M.map (sortWith timeE .> dropYrsE 15 .> getLfs) ess
+
+euclDist :: [Double] -> [Double] -> Double
+euclDist xs ys = sum $ zipWith (\x y -> (x - y) ** 2) xs ys
+
+extract :: Cluster -> [Double]
+extract c = [len c, cgermD c, cvegLen c]
+
+extractL :: Lifecycle -> [Double]
+extractL lf = [getLen .> (/ 24) $ lf, germD lf, vegSLenD lf]
+
+vsumm :: Lifecycle -> IO ()
+vsumm lf = do
+   print "Lf length"
+   print (getLen .> (/24) $ lf)
+   print "Germ d"
+   print (germD lf)
+   print "Veg season length"
+   print (vegSLenD lf)
+
+mkHeatMap :: [(Double, Double, Double, Double)] -> Layout Double Double
+mkHeatMap vals = layout 
+  where
+     plot = toPlot (area_spots_4d_values .~ vals $ area_spots_4d_max_radius .~ 20 $ def)
+     
+     layout = layout_plots .~ [plot]
+            $ def
