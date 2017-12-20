@@ -249,10 +249,6 @@ mkPoints' cs xtitle ytitle valss = layout
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
 
-mkAPoints :: [Colour Double] -> String -> String -> [[(Double, Double, Double)]] -> Layout Double Double
-
-mkAPoints = undefined
-
 mkLine' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkLine' cs ytitle title tvalss = layout
   where
@@ -657,10 +653,20 @@ vsumm lf = do
    print "Veg season length"
    print (vegSLenD lf)
 
-mkHeatMap :: [(Double, Double, Double, Double)] -> Layout Double Double
-mkHeatMap vals = layout 
+mkHeatMap :: String -> String -> [(Double, Double, Double, Double)] -> Layout Double Double
+mkHeatMap xtitle ytitle vals = layout 
   where
-     plot = toPlot (area_spots_4d_values .~ vals $ area_spots_4d_max_radius .~ 20 $ def)
-     
+     plot = toPlot ( area_spots_4d_values .~ vals
+                   $ area_spots_4d_max_radius .~ 8
+                   $ def)
      layout = layout_plots .~ [plot]
-            $ def
+           $ layout_title  .~ ""
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_title .~ xtitle
+           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title .~ ytitle
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ def
+
