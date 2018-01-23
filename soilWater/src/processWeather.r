@@ -46,7 +46,7 @@ revap <- function(temps, rads) {
         revap[i] <- rads[i] / (lwt * (1 + (gt / st)))
     }
 
-    return(revap)
+    return(revap*(-1))
 }
 
 svp <- function(t) {
@@ -62,39 +62,39 @@ mkFName <- function(env, year, month) {
 mkMonthInst <- function(year, month, e, n, loc) {
     lat <- loc[1]
     lon <- loc[2]
-    tempd <- nc_open(mkFName(e, year, month))
+    tempd <- nc_open(mkfname(e, year, month))
     temps <- ncvar_get(tempd, e)
 
     npoints <- dim(temps)[3]
 
-    dailyTemps <- rep(0, npoints / n )
+    dailytemps <- rep(0, npoints / n )
 
     ind <- 1
     for (i in seq(1, npoints, n)) {
-        dailyTemps[ind] <- mean(temps[lon, lat, i:(i+n-1)])
+        dailytemps[ind] <- mean(temps[lon, lat, i:(i+n-1)])
         ind <- ind + 1
     }
     
-    return(dailyTemps)
+    return(dailytemps)
 }
 
 mkMonthAcc <- function(year, month, e, loc) {
     lat = loc[1]
     lon = loc[2]
-    precd <- nc_open(mkFName(e, year, month))
+    precd <- nc_open(mkfname(e, year, month))
     precps <- ncvar_get(precd, e)
 
     npoints <- dim(precps)[3]
 
-    dailyPrecps <- rep(0, npoints/2)
+    dailyprecps <- rep(0, npoints/2)
 
     ind <- 1
     for (i in seq(1, npoints, 2)) {
-        dailyPrecps[ind] <- precps[lon, lat, i] + precps[lon, lat, i+1]
+        dailyprecps[ind] <- precps[lon, lat, i] + precps[lon, lat, i+1]
         ind <- ind + 1
     }
 
-    return(dailyPrecps)
+    return(dailyprecps)
 }
 
 mkMonthlyVpd <- function(temps, dtemps) {
@@ -110,23 +110,23 @@ mkMonthlyVpd <- function(temps, dtemps) {
 }
 
 mkMonth <- function(year, month, loc) {
-    dtemps <- mkMonthInst(year, month, t2m, 4, loc) - 273.15
-    ddtemps <- mkMonthInst(year, month, d2m, 4, loc) - 273.15
+    dtemps <- mkmonthinst(year, month, t2m, 4, loc) - 273.15
+    ddtemps <- mkmonthinst(year, month, d2m, 4, loc) - 273.15
     
-    rads <- mkMonthAcc(year, month, ssr, loc)
-    dprecps <- mkMonthAcc(year, month, tp, loc) * 1000
+    rads <- mkmonthacc(year, month, ssr, loc)
+    dprecps <- mkmonthacc(year, month, tp, loc) * 1000
     
-    dvpds <- mkMonthlyVpd(dtemps, ddtemps)
-    evaps <- mkMonthAcc(year, month, eva, loc) * 1000
+    dvpds <- mkmonthlyvpd(dtemps, ddtemps)
+    evaps <- mkmonthacc(year, month, eva, loc) * 1000
 
-    envMonth <- data.frame(t2m=dtemps, rad=rads, rain=dprecps, vpd=dvpds, e=evaps)
+    envmonth <- data.frame(t2m=dtemps, rad=rads, rain=dprecps, vpd=dvpds, e=evaps)
 
-    return(envMonth)
+    return(envmonth)
 }
 
 mkYear <- function(year, loc) {
-    dprecps <- mkMonthAcc(year, "", tp, loc) * 1000
-    evaps <- mkMonthAcc(year, "", eva, loc) * 1000
+    dprecps <- mkmonthacc(year, "", tp, loc) * 1000
+    evaps <- mkmonthacc(year, "", eva, loc) * 1000
 
     env <- data.frame(rain=dprecps, e=evaps)
 
@@ -134,16 +134,16 @@ mkYear <- function(year, loc) {
 }
 
 mkYearE <- function(year, loc) {
-    dprecps <- mkMonthAcc(year, "", tp, loc) * 1000
-    dtemps <- mkMonthInst(year, "", t2m, 4, loc) - 273.15
-    drads <- mkMonthAcc(year, "", ssr, loc) / 1000000
+    dprecps <- mkmonthacc(year, "", tp, loc) * 1000
+    dtemps <- mkmonthinst(year, "", t2m, 4, loc) - 273.15
+    drads <- mkmonthacc(year, "", ssr, loc) / 1000000
 
     env <- data.frame(rain=dprecps, e=revap(dtemps, drads))
 
     return(env)
 }
 
-posOrZero <- function(x) {
+posorzero <- function(x) {
     if (x < 0.0) {
         return(0.0)
     }
@@ -153,20 +153,22 @@ posOrZero <- function(x) {
 
 mkYearSoil <- function(wsoil, prec, eva) {
     ndays <- length(prec)
-    soilWater <- rep(0, ndays)
-    wsoilMax <- 400
+    soilwater <- rep(0, ndays)
+    wsoilmax <- 400
     
     for (i in 1:ndays) {
-        dw <- prec[i] + eva[i]
-        if (wsoil >= wsoilMax && dw > 0) {
+        hdrys <- (wsoilmax - wsoil) / 1000
+        fssev <- 0.02 / (0.02 + hdrys)
+        dw <- prec[i] + (eva[i] * fssev)
+        if (wsoil >= wsoilmax && dw > 0) {
             wsoil <- wsoil - dw
         } else {
-            wsoil <- posOrZero(wsoil + dw)
+            wsoil <- posorzero(wsoil + dw)
         }
-        soilWater[i] <- posOrZero(wsoil)
+        soilwater[i] <- posorzero(wsoil)
     }
 
-    return(soilWater)
+    return(soilwater)
 
 }
 
