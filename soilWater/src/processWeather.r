@@ -6,52 +6,12 @@ t2m = "t2m"
 tp = "tp"
 eva = "e"
 
+#location indexes based on 1.5x1.5 grid over Europe
 val = c(24, 19)
 oul = c(7, 2)
 edin = c(13, 17)
 hal = c(16, 27)
 nor = c()
-
-lw <- function() {
-    x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
-    y <- c(2.51, 2.5, 2.49, 2.48, 2.47, 2.45, 2.44, 2.43, 2.42, 2.41)
-    
-    return(approxfun(x, y))
-}
-
-gm <- function() {
-    x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
-    y <- c(0.527, 0.521, 0.515, 0.509, 0.503, 0.495, 0.488, 0.482, 0.478, 0.474)
-
-    return(approxfun(x, y))
-}
-
-s <- function() {
-    x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
-    y <- c(0.24, 0.33, 0.45, 0.6, 0.78, 1.01, 1.3, 1.65, 2.07, 2.57)
-
-    return(approxfun(x, y))
-}
-
-revap <- function(temps, rads) {
-    ndays <- length(temps)
-
-    revap <- rep(0, ndays)
-
-    for (i in 1:ndays) {
-        lwt <- lw()(temps[i])
-        gt <- gm()(temps[i])
-        st <- s()(temps[i])
-        
-        revap[i] <- rads[i] / (lwt * (1 + (gt / st)))
-    }
-
-    return(revap*(-1))
-}
-
-svp <- function(t) {
-    return(610.7*exp(17.4*t / (239+t)) / 1000)
-}
 
 mkFName <- function(env, year, month) {
     fn <- paste("../data/", env, "_",year,month, ".nc", sep="")
@@ -59,130 +19,39 @@ mkFName <- function(env, year, month) {
     return(fn)
 }
 
-mkMonthInst <- function(year, month, e, n, loc) {
+aggrDaily <- function(fn, e, loc, n, f) {
     lat <- loc[1]
     lon <- loc[2]
-    tempd <- nc_open(mkfname(e, year, month))
-    temps <- ncvar_get(tempd, e)
+    d <- nc_open(fn)
+    vals <- ncvar_get(d, e)
 
-    npoints <- dim(temps)[3]
+    npoints <- dim(vals)[3]
 
-    dailytemps <- rep(0, npoints / n )
+    dailyVals <- rep(0, npoints / n )
 
     ind <- 1
     for (i in seq(1, npoints, n)) {
-        dailytemps[ind] <- mean(temps[lon, lat, i:(i+n-1)])
+        dailyVals[ind] <- f(vals[lon, lat, i:(i+n-1)])
         ind <- ind + 1
     }
     
-    return(dailytemps)
+    return(dailyVals)
 }
 
-mkMonthAcc <- function(year, month, e, loc) {
-    lat = loc[1]
-    lon = loc[2]
-    precd <- nc_open(mkfname(e, year, month))
-    precps <- ncvar_get(precd, e)
+processWeather <- function(year, month, loc) {
+    tempFile <- mkFName(t2m, year, month)
+    dtempFile <- mkFName(d2m, year, month)
+    radFile <- mkFName(ssr, year, month)
+    precFile <- mkFName(tp, year, month)
 
-    npoints <- dim(precps)[3]
+   #use min temps instead of temps for all these calculations
+   # so: mtemps <- aggrDaily(mtempFile, mt2m(?), loc, 8, min) - 273.15  
+    temps <- aggrDaily(tempFile, t2m, loc, 4, mean) - 273.15
+    rads <- aggrDaily(radFile, ssr, loc, 2, sum) / 1000000
+    dtemps <- aggrDaily(dtempFile, d2m, loc, 4,  mean) - 273.15
+    precs <- aggrDaily(precFile, tp, loc, 2, sum) * 1000
 
-    dailyprecps <- rep(0, npoints/2)
-
-    ind <- 1
-    for (i in seq(1, npoints, 2)) {
-        dailyprecps[ind] <- precps[lon, lat, i] + precps[lon, lat, i+1]
-        ind <- ind + 1
-    }
-
-    return(dailyprecps)
-}
-
-mkMonthlyVpd <- function(temps, dtemps) {
-    #assume length(temps) = length(dtemps)
-    ndays <- length(temps)
-    dvpds <- rep(0, ndays)
-    
-    for (i in 1:ndays) {
-        dvpds[i] <- svp(temps[i]) - svp(dtemps[i])
-    }
-
-    return(dvpds)
-}
-
-mkMonth <- function(year, month, loc) {
-    dtemps <- mkmonthinst(year, month, t2m, 4, loc) - 273.15
-    ddtemps <- mkmonthinst(year, month, d2m, 4, loc) - 273.15
-    
-    rads <- mkmonthacc(year, month, ssr, loc)
-    dprecps <- mkmonthacc(year, month, tp, loc) * 1000
-    
-    dvpds <- mkmonthlyvpd(dtemps, ddtemps)
-    evaps <- mkmonthacc(year, month, eva, loc) * 1000
-
-    envmonth <- data.frame(t2m=dtemps, rad=rads, rain=dprecps, vpd=dvpds, e=evaps)
-
-    return(envmonth)
-}
-
-mkYear <- function(year, loc) {
-    dprecps <- mkmonthacc(year, "", tp, loc) * 1000
-    evaps <- mkmonthacc(year, "", eva, loc) * 1000
-
-    env <- data.frame(rain=dprecps, e=evaps)
+    env <- data.frame(precs=precs,temps=temps, rads=rads, dtemps=dtemps)
 
     return(env)
-}
-
-mkYearE <- function(year, loc) {
-    dprecps <- mkmonthacc(year, "", tp, loc) * 1000
-    dtemps <- mkmonthinst(year, "", t2m, 4, loc) - 273.15
-    drads <- mkmonthacc(year, "", ssr, loc) / 1000000
-
-    env <- data.frame(rain=dprecps, e=revap(dtemps, drads))
-
-    return(env)
-}
-
-posorzero <- function(x) {
-    if (x < 0.0) {
-        return(0.0)
-    }
-
-    return(x)
-}
-
-mkYearSoil <- function(wsoil, prec, eva) {
-    ndays <- length(prec)
-    soilwater <- rep(0, ndays)
-    wsoilmax <- 400
-    
-    for (i in 1:ndays) {
-        hdrys <- (wsoilmax - wsoil) / 1000
-        fssev <- 0.02 / (0.02 + hdrys)
-        dw <- prec[i] + (eva[i] * fssev)
-        if (wsoil >= wsoilmax && dw > 0) {
-            wsoil <- wsoil - dw
-        } else {
-            wsoil <- posorzero(wsoil + dw)
-        }
-        soilwater[i] <- posorzero(wsoil)
-    }
-
-    return(soilwater)
-
-}
-
-mkSoilWater <- function(prec, eva) {
-    ndays <- length(prec)
-    sw <- mkYearSoil(400, prec,eva)
-    sw1 <- mkYearSoil(sw[ndays], prec,eva)
-    sw2 <- mkYearSoil(sw1[ndays], prec,eva)
-
-    return(sw2)
-}
-
-fwstom <- function(thw) {
-    fw <- min(1, max(0.01, (thw-0.6)/0.2))
-
-    return(sqrt(fw))
 }
