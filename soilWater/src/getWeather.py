@@ -2,9 +2,10 @@
 from ecmwfapi import ECMWFDataServer
 
 t2m = "167.128"
-eva = "182.128"
 prec = "228.128"
 rad = "176.128"
+d2m = "168.128"
+mt2m = "202.128"
 
 def defReq():
   return ({
@@ -29,18 +30,6 @@ def defReq():
     "target"     : ""
   })
 
-def mkEvaReq():
-    dreq = defReq()
-
-    dreq["param"] = eva
-    dreq["type"] = "fc"
-    dreq["time"] = "0000/1200"
-    dreq["step"] = "12"
-    dreq["target"] = "../data/e_2016.nc"
-    dreq["date"] = "20160101/to/20161231"
-
-    return dreq
-
 def mkPrecReq():
     dreq = defReq()
 
@@ -48,8 +37,6 @@ def mkPrecReq():
     dreq["type"] = "fc"
     dreq["time"] = "0000/1200"
     dreq["step"] = "12"
-    dreq["target"] = "../data/tp_2016.nc"
-    dreq["date"] = "20160101/to/20161231"
 
     return dreq
 
@@ -57,10 +44,8 @@ def mkTempReq():
     dreq = defReq()
 
     dreq["param"] = t2m
-    dreq["time"] = "0000/1200"
+    dreq["time"] = "0000/0600/1200/1800"
     dreq["step"] = "0"
-    dreq["target"] = "../data/t2m_2016.nc"
-    dreq["date"] = "20160101/to/20161231"
 
     return dreq
 
@@ -74,35 +59,48 @@ def mkRadReq():
 
     return dreq
 
-def goTemp():
+def mkDTempReq():
+    dreq = defReq()
+
+    dreq["param"] = d2m
+    dreq["time"] = "1200/1800"
+    dreq["step"] = "0"
+
+    return dreq
+
+def mkMinTempReq():
+    dreq = defReq()
+
+    dreq["param"] = mt2m
+    dreq["time"] = "0000/1200"
+    dreq["step"] = "3/6/9/12"
+
+    return dreq
+
+def go():
     server = ECMWFDataServer()
     
     tempReq = mkTempReq()
     tempReq["date"] = "20100101/to/20111231"
     tempReq["target"] = "../data/t2m_20102011.nc"
 
-    
-    server.retrieve(tempReq)
+    dtempReq = mkDTempReq()
+    dtempReq["date"] = "20100101/to/20111231"
+    dtempReq["target"] = "../data/d2m_20102011.nc"
 
-def goRad():
-    server = ECMWFDataServer()
     radReq = mkRadReq()
     radReq["date"] = "20100101/to/20111231"
     radReq["target"] = "../data/ssr_20102011.nc"
 
-    server.retrieve(radReq)
-
-def go():
-    server = ECMWFDataServer()
-
-    evaReq = mkEvaReq()
     precReq = mkPrecReq()
-
-    evaReq["date"] = "20100101/to/20111231"
-    evaReq["target"] = "../data/e_20102011.nc"
-
     precReq["date"] = "20100101/to/20111231"
     precReq["target"] = "../data/tp_20102011.nc"
-    
-    server.retrieve(evaReq)
-    server.retrieve(precReq)
+
+    mtempReq = mkMinTempReq()
+    mtempReq["date"] = "20100101/to/20111231"
+    mtempReq["target"] = "../data/mt2m_20102011.nc"
+
+    for req in [tempReq, dtempReq, radReq, precReq, mtempReq]:
+        server.retrieve(req)
+
+    return
