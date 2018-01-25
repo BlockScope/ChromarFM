@@ -66,14 +66,14 @@ resAir <- function(h, k) {
     return((log(h/z)**2) / (k**2*0.3))
 }
 
-wvEvap <- function(temp, dtemp) {
+wvEvap <- function(temp, dtemp, d) {
     rAir <-  resAir(5, 0.4)
     rhos <- rhoSat()(temp)
     st <- s()(temp)
     gt <- gm()(temp)
 
     
-    ewv <- 86400*(rhos * (1-rh(temp, dtemp))) / (rAir * (1 + (st / gt)))
+    ewv <- 86400*d*(rhos * (1-rh(temp, dtemp))) / (rAir * (1 + (st / gt)))
 
     return(ewv * (-1))
 }
@@ -88,7 +88,7 @@ mkYearSoil <- function(wsoil, env) {
         fssev <- 0.02 / (0.02 + hdrys)
 
         evapTotal <- revap(env$temps[i], env$rads[i]) +
-                     wvEvap(env$temps[i], env$dtemps[i])
+                     wvEvap(env$temps[i], env$dtemps[i], env$ds[i])
         dw <- env$precs[i] + (evapTotal * fssev)
         if (wsoil >= wsoilMax && dw > 0) {
             wsoil <- wsoil - dw
