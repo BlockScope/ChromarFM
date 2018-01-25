@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import os.path
 from ecmwfapi import ECMWFDataServer
 
 t2m = "167.128"
@@ -76,6 +78,23 @@ def mkMinTempReq():
     dreq["step"] = "3/6/9/12"
 
     return dreq
+
+def mretrieve(server, req):
+  fn = req["target"]
+  server.retrieve(req)
+
+  if os.path.getsize(fn) == 0:
+    return None
+  else:
+    return True
+  
+
+def bind(x, f):
+  if x is None:
+    return None
+  else:
+    return f(x)
+  
 
 def go():
     server = ECMWFDataServer()
