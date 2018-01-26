@@ -2,28 +2,28 @@ lw <- function() {
     x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
     y <- c(2.51, 2.5, 2.49, 2.48, 2.47, 2.45, 2.44, 2.43, 2.42, 2.41)
     
-    return(approxfun(x, y))
+    return(approxfun(x, y, rule=2))
 }
 
 gm <- function() {
     x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
     y <- c(0.527, 0.521, 0.515, 0.509, 0.503, 0.495, 0.488, 0.482, 0.478, 0.474)
 
-    return(approxfun(x, y))
+    return(approxfun(x, y, rule=2))
 }
 
 s <- function() {
     x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
     y <- c(0.24, 0.33, 0.45, 0.6, 0.78, 1.01, 1.3, 1.65, 2.07, 2.57)
 
-    return(approxfun(x, y))
+    return(approxfun(x, y, rule=2))
 }
 
 rhoSat <- function() {
     x <- c(-5, 0, 5, 10, 15, 20, 25, 30, 35, 40)
     y <- c(3.7, 4.9, 6.8, 9.4, 12.8, 17.3, 23.1, 30.4, 39.7, 51.2)
 
-    return(approxfun(x, y))
+    return(approxfun(x, y, rule=2))
 }
 
 posorzero <- function(x) {
@@ -84,20 +84,19 @@ mkYearSoil <- function(wsoil, env) {
     wsoilMax <- 400
     
     for (i in 1:ndays) {
-        hdrys <- (wsoilMax - wsoil) / 1000
+        hdrys <- posorzero((wsoilMax - wsoil) / 1000)
         fssev <- 0.02 / (0.02 + hdrys)
 
         evapTotal <- revap(env$temps[i], env$rads[i]) +
                      wvEvap(env$temps[i], env$dtemps[i], env$ds[i])
         dw <- env$precs[i] + (evapTotal * fssev)
         if (wsoil >= wsoilMax && dw > 0) {
-            wsoil <- wsoil - dw
+            wsoil <- wsoil
         } else {
             wsoil <- posorzero(wsoil + dw)
         }
         soilWater[i] <- posorzero(wsoil)
     }
-
     return(soilWater)
 }
 
@@ -106,7 +105,7 @@ mkSoilWater <- function(env) {
     sw <- mkYearSoil(400, env)
     sw1 <- mkYearSoil(sw[ndays], env)
     sw2 <- mkYearSoil(sw1[ndays], env)
-
+    
     return(sw2)
 }
 

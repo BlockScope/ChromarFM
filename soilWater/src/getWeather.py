@@ -8,6 +8,9 @@ prec = "228.128"
 rad = "176.128"
 d2m = "168.128"
 mt2m = "202.128"
+swvl1 = "39.128"
+swvl2 = "40.128"
+swvl3 = "41.128"
 
 def defReq():
   return ({
@@ -27,7 +30,7 @@ def defReq():
     "grid"       : "1.5/1.5",
     "padding"    : "0",
     "expect"     : "ANY",
-    "date"       : "20160201/to/20160229",
+    "date"       : "",
     "format"     : "netcdf",
     "target"     : ""
   })
@@ -79,6 +82,26 @@ def mkMinTempReq():
 
     return dreq
 
+def mkSWReq(swvl):
+    dreq = defReq()
+    dreq["param"] = swvl
+    dreq["time"] = "0000/0600/1200/1800"
+    dreq["step"] = "0"
+
+    return dreq
+
+def mkYear(yr):
+  ystart = yr + "0101"
+  yend = yr + "1231"
+
+  return (ystart + "/to/" + yend)
+
+def mkYears(yr1, yr2):
+  y1Start = yr1 + "0101"
+  y2End = yr2 + "1231"
+
+  return (y1Start + "/to/" + y2End)
+
 def mretrieve(server, req):
   fn = req["target"]
   server.retrieve(req)
@@ -87,7 +110,6 @@ def mretrieve(server, req):
     return None
   else:
     return True
-  
 
 def bind(x, f):
   if x is None:
@@ -95,7 +117,6 @@ def bind(x, f):
   else:
     return f(x)
   
-
 def go():
     server = ECMWFDataServer()
     

@@ -1,5 +1,5 @@
 library(ncdf4)
-library(oce)
+library(maptools)
 
 d2m = "d2m"
 ssr = "ssr"
@@ -7,10 +7,12 @@ t2m = "t2m"
 tp = "tp"
 eva = "e"
 mn2t = "mn2t"
+swvl1 = "swvl1"
+swvl2 = "swvl2"
 
 #location indexes based on 1.5x1.5 grid over Europe
-val = c(24, 19)
-oul = c(7, 2)
+val = c(23, 18)
+oul = c(7, 36)
 edin = c(13, 17)
 hal = c(16, 27)
 nor = c()
@@ -64,10 +66,10 @@ processWeather <- function(year, month, loc, dates) {
     radFile <- mkFName(ssr, year, month)
     precFile <- mkFName(tp, year, month)
 
-   #use min temps instead of temps for all these calculations
+    #use min temps instead of temps
     temps <- aggrDaily(tempFile, t2m, loc, 4, min) - 273.15
     rads <- aggrDaily(radFile, ssr, loc, 2, sum) / 1000000
-    dtemps <- aggrDaily(dtempFile, d2m, loc, 4,  mean) - 273.15
+    dtemps <- aggrDaily(dtempFile, d2m, loc, 2,  mean) - 273.15
     precs <- aggrDaily(precFile, tp, loc, 2, sum) * 1000
 
     env <- data.frame(precs=precs,
@@ -78,3 +80,45 @@ processWeather <- function(year, month, loc, dates) {
 
     return(env)
 }
+
+indexifySW <- function(swp, sfc) {
+    return(function(sw) {
+        return((sw - swp) / (sfc - swp))
+    })
+}
+
+zipWith <- function(f, xs, ys) {
+    n <- length(xs)
+    zs <- rep(0, n)
+    
+    for (i in n) {
+        zs[i] <- f(c(xs[i], ys[i]))
+    }
+
+    return(zs)
+}
+
+mkSWIndex <- function(year, month, loc) {
+    sw1 <- aggrDaily(mkFName(swvl1, year, month), swvl1, loc, 4, mean)
+    sw2 <- aggrDaily(mkFName(swvl2, year, month), swvl2, loc, 4, mean)
+
+    return(sapply(zipWith(mean, sw1, sw2),
+                  indexifySW(0.151, 0.346)))
+}
+
+
+mkSWIndex1 <- function(year, month, loc) {
+    sw1 <- aggrDaily(mkFName(swvl1, year, month), swvl1, loc, 4, mean)
+
+    return(sapply(sw1,
+                  indexifySW(0.151, 0.346)))
+}
+
+
+
+
+
+
+
+
+
