@@ -56,7 +56,8 @@ aggrDaily <- function(fn, e, loc, n, f) {
         dailyVals[ind] <- f(vals[lon, lat, i:(i+n-1)])
         ind <- ind + 1
     }
-    
+
+    nc_close(d)
     return(dailyVals)
 }
 
