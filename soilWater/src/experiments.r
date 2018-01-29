@@ -4,7 +4,8 @@ source("processWeather.r")
 source("soilModel.r")
 
 plotMoistIndex <- function(year, month, loc, name) {
-    swInd <- mkSWIndex1(year, month, loc)
+    #swInd <- mkSWIndex1(year, month, loc)
+    swInd <- mkSWIndex1Soil(year, month, loc, 0.059, 0.242)
 
     swInd[swInd > 1] <- 1
     p <- ggplot() + geom_line(aes(x=1:(length(swInd)), y=swInd), size=1.0, colour="blue", alpha=0.7)
