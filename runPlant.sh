@@ -24,3 +24,4 @@ echo "stack exec -- fmLite $outDir $startTime $endTime"
 stack exec -- fmLite "$outDir" "$startTime" "$endTime"
 open "$outDir/plots/mass.png"
 
+#./runPlant.sh Oul `echo "$((236*24))"` `echo "$((498*24))"`
