@@ -18,7 +18,7 @@ import qualified Data.Map as M
 import qualified Data.Vector as V
 import Graphics.Rendering.Chart
 import Graphics.Rendering.Chart.Grid
-import Graphics.Rendering.Chart.Backend.Diagrams
+import Graphics.Rendering.Chart.Backend.Cairo
 import System.Environment
 import Chromar.Fluent
 import Data.Maybe
@@ -250,7 +250,7 @@ mkPoints' cs xtitle ytitle valss = layout
            $ def
 
 mkLine' :: [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
-mkLine' cs ytitle title tvalss = layout
+mkLine' cs ytitle xtitle tvalss = layout
   where
     plot c tvals =
         toPlot
@@ -259,11 +259,11 @@ mkLine' cs ytitle title tvalss = layout
              $ plot_lines_style . line_width .~ 2.0
              $ def)
     layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs tvalss]
-           $ layout_title  .~ title
+           $ layout_title  .~ ""
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0
-           $ layout_x_axis . laxis_title .~ "time (h)"
+           $ layout_x_axis . laxis_title .~ xtitle
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
            $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
@@ -662,11 +662,25 @@ mkHeatMap xtitle ytitle vals = layout
      layout = layout_plots .~ [plot]
            $ layout_title  .~ ""
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
+           
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0
            $ layout_x_axis . laxis_title .~ xtitle
            $ layout_y_axis . laxis_title_style . font_size .~ 20.0
-           $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ layout_y_axis . laxis_title .~ ytitle
            $ def
 
+
+-- plotHistsGridR
+--     1
+--     [ mkPoints''
+--           [blue]
+--           "x"
+--           "y"
+--           "title"
+--           [ [ ( fromIntegral (tep e)
+--               , phRate (tempp e) (par e) (photop e) (moistp e))
+--             | e <- wd ]
+--           ]
+--     ]
