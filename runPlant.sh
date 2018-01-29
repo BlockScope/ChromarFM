@@ -4,10 +4,10 @@ loc=$1;
 startTime=$2;
 endTime=$3;
 
-declare -A fNms=(["Val"]='"data\/rad\/weatherValencia2yrsRad.csv"'
-		 ["Oul"]='"data\/rad\/weatherOulu2yrsRad.csv"'
-		 ["Hal"]='"data\/rad\/weatherHalle2yrsRad.csv"'
-		 ["Nor"]='"data\/rad\/weatherNorwich2yrsRad.csv"')
+declare -A fNms=(["Val"]='"data\/soil\/valencia_20102011.csv"'
+		 ["Oul"]='"data\/soil\/oulu_20102011.csv"'
+		 ["Hal"]='"data\/soil\/halle_20102011.csv"'
+		 ["Nor"]='"data\/soil\/norwich_20102011.csv"')
 
 declare -A fOutDirs=(["Val"]='out/fmLiteExpsVal'
 		     ["Oul"]='out/fmLiteExpsOul'
