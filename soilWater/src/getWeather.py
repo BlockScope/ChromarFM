@@ -116,6 +116,19 @@ def bind(x, f):
     return None
   else:
     return f(x)
+
+def goSW():
+  params = [swvl1, swvl2, swvl3]
+  names = ["swvl1", "swvl2", "swvl3"]
+  server = ECMWFDataServer()
+
+  for (p, n) in zip(params, names):
+    swReq = mkSWReq(p)
+    swReq["target"] = "../data/" + n + "_20102011.nc"
+    swReq["date"] = "20100101/to/20111231"
+    server.retrieve(swReq)
+
+  return
   
 def go():
     server = ECMWFDataServer()
