@@ -9,6 +9,7 @@ eva = "e"
 mn2t = "mn2t"
 swvl1 = "swvl1"
 swvl2 = "swvl2"
+swvl3 = "swvl3"
 
 #location indexes based on 1.5x1.5 grid over Europe
 val = c(23, 18)
@@ -16,7 +17,6 @@ oul = c(7, 36)
 edin = c(13, 17)
 hal = c(16, 27)
 nor = c()
-
 
 dayLengths <- function(loc, dates) {
     srise <- sunriset(loc, dates, direction="sunrise", POSIXct.out=TRUE)
@@ -92,7 +92,7 @@ zipWith <- function(f, xs, ys) {
     n <- length(xs)
     zs <- rep(0, n)
     
-    for (i in n) {
+    for (i in 1:n) {
         zs[i] <- f(c(xs[i], ys[i]))
     }
 
@@ -113,6 +113,13 @@ mkSWIndex1 <- function(year, month, loc) {
 
     return(sapply(sw1,
                   indexifySW(0.151, 0.346)))
+}
+
+mkSWIndex1Soil <- function(year, month, loc, spwp, sfc) {
+    sw1 <- aggrDaily(mkFName(swvl1, year, month), swvl1, loc, 4, mean)
+
+    return(sapply(sw1,
+                  indexifySW(spwp, sfc)))
 }
 
 
