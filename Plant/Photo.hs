@@ -43,16 +43,13 @@ fstom m = sqrt fw
     fw = min (max 0.01 ((moistInd - 0.6)/0.2)) 1
 
 fstom' :: Double -> Double
-fstom' m = sqrt (min (max 0.01 ((moistInd - 0.6)/0.2)) 1)
-  where
-    mmax = -10.0
-    moistInd = (mmax / m) ** (1/5.0)
+fstom' moistInd = sqrt (min (max 0.01 ((moistInd - 0.6)/0.2)) 1)
 
 phRate tempt tpar pp m
   | tempt <= 0.0 = 0.0
   | otherwise = if rho <= 0
-                then avRub
-                else min avRub ajRub                 
+                then avRub * (fstom' m)
+                else (min avRub ajRub) * (fstom' m)
   where
     dn = 298 * r * (tempt + 273.0)
     kcTLeaf = kmRsco25 * exp (aEnergyKc25 * (tempt - 25) / dn)
