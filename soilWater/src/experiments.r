@@ -5,7 +5,7 @@ source("soilModel.r")
 
 plotMoistIndex <- function(year, month, loc, name) {
     #swInd <- mkSWIndex1(year, month, loc)
-    swInd <- mkSWIndex1Soil(year, month, loc, 0.059, 0.242)
+    swInd <- mkSWIndex3(year, month, loc)
 
     swInd[swInd > 1] <- 1
     p <- ggplot() + geom_line(aes(x=1:(length(swInd)), y=swInd), size=1.0, colour="blue", alpha=0.7)
@@ -15,10 +15,10 @@ plotMoistIndex <- function(year, month, loc, name) {
 }
 
 goMoistIndexes <- function() {
-    pVal <- plotMoistIndex("2010", "", val, "Valencia")
-    pHal <- plotMoistIndex("2010", "", hal, "Halle")
-    pOul <- plotMoistIndex("2010", "", oul, "Oulu")
-    pEdin <- plotMoistIndex("2010", "", edin, "Edinburgh")
+    pVal <- plotMoistIndex("20102011", "", val, "Valencia")
+    pHal <- plotMoistIndex("20102011", "", hal, "Halle")
+    pOul <- plotMoistIndex("20102011", "", oul, "Oulu")
+    pEdin <- plotMoistIndex("20102011", "", edin, "Edinburgh")
 
     plot_grid(pVal, pHal, pOul, pEdin)
 }
