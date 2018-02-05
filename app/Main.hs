@@ -1,5 +1,7 @@
 {-# LANGUAGE TransformListComp #-}
+module Main where
 
+import           Agent
 import           Chromar
 import           Control.Lens                           hiding (at)
 import           Control.Monad
@@ -7,166 +9,76 @@ import           Data.Colour
 import           Data.Colour.Names
 import           Data.Default.Class
 import           Data.List
+import           Env
 import           GHC.Exts                               (groupWith, the)
 import           Graphics.Rendering.Chart
 import           Graphics.Rendering.Chart.Backend.Cairo
 import           Plant
 import qualified System.Random                          as R
+import           Utils
+import Params
+import System.Environment
 
-outDir = "out/fmliteExps12h"
+mkSt' :: Multiset Agent
+mkSt' = ms
+        [EPlant{sdeg=calcSDeg si time, thrt=0.0, attr=atr, dg=0.0, wct=0.0},
+         Leaf{attr=atr, i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Leaf{attr=atr, i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Root {attr=atr, m = pr * fR * (seedInput / (pr*fR + 2)) },
+         Cell{attr=atr, c = initC * ra, s=si}]
+  where
+    cotMass = cotArea / slaCot
+    fR = rdem 0.0 thrmFinal
+    ra = 2*cotArea*cos (10/180*pi)
+    si = initS * initC * ra
+    atr = Attrs{ind=1, psi=0.0, fi=0.598}
+      
+mdLite =
+    Model
+    { rules =
+        [ growth
+        , assim
+        , leafCr
+        , starchConv
+        , starchFlow
+        , maintRes
+        , rootGrowth
+        , rootMaint
+        , leafTransl
+        , rootTransl
+        , devep
+        , leafD'  
+        ]
+    , initState = mkSt'
+    }
 
-main =
+mainLite :: FilePath -> Time -> IO ()
+mainLite outDir dur=
     goPlot
-        10
+        5
         [ carbon
         , leafMass
         , starch
         , rootMass
+        , nL
+        , plantDev
+        , thrtt
         , leaf1Mass
         , leaf5Mass
         , leaf10Mass
-        , leaf12Mass
-        , nL
+        , leaf18Mass  
+        , tLDem
+        , tRDem  
         ]
-        [0 .. 800]
+        [0 .. dur]
         outDir
+        mdLite
+        (\s -> getT s < dur)
 
-goPlot nreps obss tss outDir = do
-    rgen <- R.getStdGen
-    let obssF = map gen obss
-    let obsNms = map name obss
-    let nObs = length obss
-    let trajs = runTT rgen nreps hasFlowered mdLite
-    let tobsss = map (flip applyObs obssF) trajs
-    let stobsss = map (tsample tss) tobsss
-    mapM_ (plotObs obsNms stobsss outDir) [0 .. (nObs - 1)]
-    mapM_ (writeAvgObs obsNms stobsss outDir) [0 .. (nObs - 1)]
-    print $ avgLastTime stobsss
-
-writeAvgObs nms tobsss outDir i = writeFile fout (unlines stpoints)
-  where
-    bOutDir = outDir ++ "/" ++ "text"
-    fout = bOutDir ++ "/" ++ (nms !! i) ++ ".txt"
-    avgTj = avgTraj i tobsss
-    stpoints = map (\(t, v) -> show t ++ " "  ++ show v) avgTj
-
---- plot ith observable
-plotObs nms tobsss outDir i = renderableToFile def fout chart
-  where
-    bOutDir = outDir ++ "/" ++ "plots"
-    fout = bOutDir ++ "/" ++ (nms !! i) ++ ".png"
-    avgTj = avgTraj i tobsss
-    lines = map (mkLine i) tobsss ++ [mkSolidLine avgTj]
-
-    layout = layout_plots .~ lines
-           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           $ layout_x_axis . laxis_title .~ "time (h)"
-           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
-           $ layout_y_axis . laxis_title .~ (nms !! i)
-           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
-           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
-           $ def
-
-    chart = toRenderable layout
-
-mkLine :: Int -> [(Time, [Obs])] -> Plot Time Obs
-mkLine i tobss =
-    toPlot
-        (plot_lines_values .~ [mkXYPairs i tobss] $ plot_lines_style . line_color .~
-         (blue `withOpacity` 0.2) $
-         plot_lines_style .
-         line_width .~
-         3.0 $
-         def)
-
-mkSolidLine :: [(Time, Obs)] -> Plot Time Obs
-mkSolidLine tobss =
-    toPlot
-        (plot_lines_values .~ [tobss] $ plot_lines_style . line_color .~
-         opaque red $
-         plot_lines_style .
-         line_width .~
-         3.0 $
-         def)
-
-mkXYPairs :: Int -> [(Time, [Obs])] -> [(Time, Obs)]
-mkXYPairs i tobss =
-    [ (t, obss !! i)
-    | (t, obss) <- tobss ]
-
-avgT :: Time -> [Fluent Obs] -> Obs
-avgT t fs = avg [at f t | f <- fs]
-
-avgTraj i tobsss =
-    [ (t, avgT t fluents)
-    | t <- [1 .. te] ]
-  where
-    tobsssi = map (mkXYPairs i) tobsss :: [[(Time, Obs)]]
-    fluents = map flookup tobsssi
-    te = 800
-
-avgHour tobss = [(fromIntegral (the (map floor t)), avg obs) | (t, obs) <- tobss,
-                 then group by (floor t) using groupWith]
-
-runTT
-    :: (Eq a)
-    => R.StdGen -> Int -> (Multiset a -> Bool) -> Model a -> [[State a]]
-runTT gen n fb md
-    | n == 0 = []
-    | otherwise = traj : runTT rg2 (n - 1) fb md
-  where
-    (rg1, rg2) = R.split gen
-    traj = takeWhile (fb . getM) (simulate rg1 (rules md) (initState md))
-
-runUntil
-    :: (Ord a, Show a)
-    => Model a -> (Multiset a -> Bool) -> FilePath -> [Observable a] -> IO ()
-runUntil Model {rules = rs
-               ,initState = s} fb fn obss = do
-    rgen <- R.getStdGen
-    let traj = takeWhile (fb . getM) (simulate rgen rs s)
-    writeObs fn obss traj
-
-tsample :: [Time] -> [(Time, a)] -> [(Time, a)]
-tsample _ [] = []
-tsample [] _ = []
-tsample (ts1:tss) [(t1, v1)] = [(ts1, v1)]
-tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
-    | ts1 < t1 = (ts1, v1) : tsample tss tv
-    | ts1 >= t1 && ts1 < t2 = (ts1, v1) : tsample tss ((t2, v2) : tvs)
-    | ts1 >= t2 = tsample ts tvs
-
-avgLastTime :: [[(Time, a)]] -> Time
-avgLastTime tobss = avg $ map (fst . last) tobss
-
-mainDistr :: IO ()
-mainDistr = do
-    gen <- R.getStdGen
-    let tend = (365 * 60 * 24)
-    let traj =
-            takeWhile
-                (\s -> getT s < tend)
-                (simulate gen (rules md) (initState md))
-    let lState = getM (last traj)
-    let rms =
-            head
-                [ rm
-                | (System {rosMass = rm}, _) <- lState ]
-    let (gts, fts, ss) =
-            head
-                [ (gt, ft, s)
-                | (System {germTimes = gt
-                          ,flowerTimes = ft
-                          ,ssTimes = s}, _) <- lState ]
-    let gts =
-            head
-                [ gt
-                | (System {germTimes = gt}, _) <- lState ]
-    mapM_ print rms
-    print "----------"
-    mapM_ print gts
-    print "----------"
-    mapM_ print fts
-    print "----------"
-    mapM_ print ss
+main = do
+  args <- getArgs
+  let outDir = args !! 0 :: FilePath
+      tstart = read (args !! 1) :: Time
+      tend = read (args !! 2) :: Time
+  print "running"
+  mainLite outDir (tend - tstart)

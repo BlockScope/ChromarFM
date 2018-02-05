@@ -37,10 +37,19 @@ jv d
     | d == 18 = 1.2
     | otherwise = 1.0
 
-phRate tempt tpar pp =
-    if rho <= 0
-        then avRub
-        else min avRub ajRub
+fstom m = sqrt fw
+  where
+    moistInd = (m + 200) / 200
+    fw = min (max 0.01 ((moistInd - 0.6)/0.2)) 1
+
+fstom' :: Double -> Double
+fstom' moistInd = sqrt (min (max 0.01 ((moistInd - 0.6)/0.2)) 1)
+
+phRate tempt tpar pp m
+  | tempt <= 0.0 = 0.0
+  | otherwise = if rho <= 0
+                then avRub * (fstom' m)
+                else (min avRub ajRub) * (fstom' m)
   where
     dn = 298 * r * (tempt + 273.0)
     kcTLeaf = kmRsco25 * exp (aEnergyKc25 * (tempt - 25) / dn)

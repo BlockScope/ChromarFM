@@ -3,11 +3,12 @@
 
 module Plant where
 
+import           Agent
 import           Chromar
 import           Data.Fixed
 import           Data.List
 import           Data.Time.Calendar.MonthDay
-import           Env
+import           EnvT
 import           GHC.Exts
 import           GHC.Generics
 import           Params
@@ -21,29 +22,8 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-tend = 756
-
-thrmFinal = sum [(at temp (fromIntegral ti)) / 24.0 | ti <- [1..tend]]
-
-isLeaf :: Agent -> Bool
-isLeaf Leaf {} = True
-isLeaf _ = False
-
-isPlant :: Agent -> Bool
-isPlant (Plant{}) = True
-isPlant _ = False
-
-isEPlant :: Agent -> Bool
-isEPlant (EPlant{}) = True
-isEPlant _ = False
-
-isSeed :: Agent -> Bool
-isSeed (Seed{}) = True
-isSeed _ = False
-
-isSystem :: Agent -> Bool
-isSystem (System{}) = True
-isSystem _ = False
+---thrmFinal = 4150
+thrmFinal = 3500
 
 median :: [Int] -> Int
 median [] = 0
@@ -165,24 +145,13 @@ dassim phR ra = phR * ra * gc
   where
     gc = 86400 * 10**(-6)*12 * (1/24.0)
 
-calcSDeg :: Double -> Double -> Double
-calcSDeg s tt
-    | h < sunrise =
-        s / (kStarch * ((sunrise - h) / (sunrise + 24 - sunset)) + 1 - kStarch)
-    | h > sunset =
-        s /
-        (kStarch * ((24 - h + sunrise) / (24 - sunset + sunrise)) + 1 - kStarch)
-    | otherwise = 0.0
-  where
-    h = mod' tt 24.0
+calcSDeg a b = 0.0
 
-close tt sset = abs (tt - sset) < 1
+isSunset t = at day t && not (at day (t+1))
 
 updSDeg s sdeg tt
-  | close h sunset = (s * kStarch) / (24 - (sunset - sunrise))
+  | isSunset tt = (s * kStarch) / (24 - (at photo' tt))
   | otherwise = sdeg
-  where
-    h = mod' tt 24.0
 
 sla' thr = slaCot * exp (slaExp*thr)
   where
@@ -198,9 +167,9 @@ ldem i thra thr
           (1 - ((thr - thra) / texp i))**(b-1)
     maxDem = 0.0161
 
-rdem thrt = dem / maxDem
+rdem thrt tf = dem / maxDem
   where
-    tr = rootLc * thrmFinal
+    tr = rootLc * tf
     a = 13.03
     b = 9.58
     dem = ((thrt + 0.5) / tr) ** (a - 1) * (1 - (thrt + 0.5) / tr) ** (b - 1)
@@ -223,7 +192,9 @@ rm2c m = m * rootFactor
 rc2m c = c / rootFactor
 
 maint :: Double -> Double -> Int -> Obs -> Obs -> Double -> Double
-maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
+maint m a i iMax nl tempt
+  | tempt <= 0.0 = 0.0
+  | otherwise = rlRes * leafArea * (1 / 24.0)
   where
     p = 0.085
     p' = 0.016
@@ -234,7 +205,9 @@ maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
     rl20 = (p * c + p') * 24
     rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
-maintRos m a tempt = rlRes * a * (1 / 24.0)
+maintRos m a tempt
+  | tempt <= 0.0 = 0.0
+  | otherwise = rlRes * a * (1 / 24.0)
   where
     p = 0.085
     p' = 0.016
@@ -248,9 +221,9 @@ g m = gmax * (1/24.0)
     lc = m2c m
     gmax = 0.408 * lc
 
-tLDem=
+tLDem =
     Observable
-    { name = "totGrowth"
+    { name = "totLDemand"
     , gen =
         \s ->
              let tt =
@@ -261,7 +234,23 @@ tLDem=
                     [ ldem i ta tt
                     | (Leaf {ta = ta
                             ,m = m
-                            ,i = i}, _) <- s ])
+                            ,i = i}, _) <- s])
+    }
+
+tLDemI i =
+    Observable
+    { name = "totLDemand"
+    , gen =
+        \s ->
+             let tt =
+                     sum
+                         [ thr
+                         | (EPlant {thrt = thr}, _) <- s ]
+             in (sum
+                    [ ldem i ta tt
+                    | (Leaf {ta = ta
+                            ,m = m
+                            ,i = is}, _) <- s, is==i])
     }
 
 tRDem =
@@ -271,9 +260,9 @@ tRDem =
         \s ->
              let tt =
                      sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in rdem tt
+                         [ d
+                         | (EPlant {dg = d}, _) <- s ]
+             in rdem tt thrmFinal
     }
 
 
@@ -332,34 +321,10 @@ rMaint s t =
 
 totalMaint s t = rMaint s t + lMaint s t
 
-----dassim (phRate temp par photo') rArea
 cAssim s t =
-    let phR = phRate12 -- 22.0 120.0 14
+    let phR = phRate (at temp t) (at par t) (at photo' t) (at moist t)
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
-
-mkSt :: Multiset Agent
-mkSt =
-    ms
-        (leaves ++ [ Cell{ c = initC * ra, s=initS * initC * ra}, root, plant ])
-  where
-    cotMass = cotArea / slaCot
-    fR = rdem 100
-    leaves =
-        [ Leaf{ i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea}
-        , Leaf{ i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea}
-        ]
-    root = Root { m = pr * fR * (seedInput / (pr*fR + 2)) }
-    plant = Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0}
-    ra = rosArea (ms leaves)
-
-mkSt' :: Multiset Agent
-mkSt' = ms [ Plant {thrt=0.0, attr=Attrs {ind = 1, psi = 0.0}, dg=0.0, wct=0.0} ]
-
-mkSt'' :: Multiset Agent
-mkSt'' = ms [System{germTimes = [], flowerTimes=[], ssTimes=[], rosMass=[]},
-             Seed {mass=1.6e-5, attr=Attrs {ind=1, psi=0.0}, dg=0.0, art=0.0}
-            ]
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -376,44 +341,9 @@ leaf10Mass = Observable { name = "mass10",
 leaf12Mass = Observable { name = "mass12",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 12] }
 
-data Attrs = Attrs
-  { ind :: Int
-  , psi :: Double
-  } deriving (Ord, Eq, Show)
+leaf18Mass = Observable { name = "mass18",
+                         gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i ==18] }
 
-data Agent
-    = System { germTimes   :: [Int]
-             , flowerTimes :: [Int]
-             , ssTimes     :: [Int]
-             , rosMass     :: [Double]}
-    | Seed { mass :: Double
-           , attr :: Attrs
-           , dg   :: Double
-           , art  :: Double}
-    | Leaf { i  :: Int
-           , ta :: Double
-           , m  :: Double
-           , a  :: Double}
-    | Cell { c :: Double
-           , s :: Double}
-    | Root { m :: Double}
-    | Plant { thrt :: Double
-            , attr :: Attrs
-            , dg   :: Double
-            , wct  :: Double}
-    | EPlant { sdeg :: Double
-             , thrt :: Double
-             , attr :: Attrs
-             , dg   :: Double
-             , wct  :: Double}
-    | FPlant { attr :: Attrs
-             , dg   :: Double}
-    deriving (Eq, Ord, Show)
-
-isCell (Cell{c=c}) = True
-isCell _ = False
-
---s2c :: Double -> Double
 s2c s pp = (kStarch * s) / (24 - pp)
 
 emerg d
@@ -425,21 +355,21 @@ $(return [])
 
 dev =
     [rule| Seed{attr=atr, dg=d, art=a} -->
-           Seed{attr=atr, dg = d + (htu time a (psi atr)), art=a + (arUpd moist temp)}
+           Seed{attr=atr, dg = d + (htu time a (psi atr))/1.0, art=a + (arUpd moist temp)/1.0}
            @1.0
    |]
 
 trans =
     [rule|
-        System{germTimes=gts}, Seed{mass=m, attr=atr, dg=d, art=a} -->
-        System{germTimes=(getMonth time:gts)}, Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
+        Seed{mass=m, attr=atr, dg=d, art=a} -->
+        Plant{thrt=0.0, attr=atr, dg=0.0, wct=0.0}
         @log' d
   |]
 
 growth =
     [rule|
-      EPlant{thrt=tt}, Leaf{i=i, m=m, a=a, ta=ta}, Cell{c=c, s=s'} -->
-      EPlant{thrt=tt}, Leaf{m=m+(c2m gr), a=max a a'}, Cell{c=c-grRes, s=s'}
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta}, Cell{attr=atr, c=c, s=s'} -->
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'}, Cell{attr=atr, c=c-grRes, s=s'}
       @10*ld [c-grRes > cEqui]
         where
           ld = ldem i ta tt,
@@ -455,15 +385,13 @@ assim =
     Cell{c=c + 0.875*da, s=s'+ 0.125*da}
     @1.0 [day]
       where
-        da = dassim phRate12 rArea
+        da = dassim (phRate temp par photo' moist)  rArea
   |]
-
---- (phRate temp par photo')
 
 starchConv =
   [rule|
-    EPlant{sdeg=sd}, Cell{c=c, s=s'} -->
-    EPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
+    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c, s=s'} -->
+    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
   |]
 
 starchFlow =
@@ -473,14 +401,14 @@ starchFlow =
 
 leafCr =
     [rule|
-      EPlant{thrt=tt} --> EPlant{thrt=tt}, Leaf{i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
+      EPlant{attr=atr, thrt=tt} --> EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
       @(rateApp lastThr (pCron' tt) tt)
     |]
 
 maintRes =
   [rule|
-    Cell{c=c, s=s'}, Leaf{a=a,i=i, m=m} -->
-    Cell{c=c-lmaint}, Leaf{m=m}
+    Cell{attr=atr, c=c, s=s'}, Leaf{attr=atr, a=a,i=i, m=m} -->
+    Cell{attr=atr, c=c-lmaint}, Leaf{attr=atr, m=m}
     @1.0 [c-lmaint > 0]
       where
         lmaint = maint m a i maxL nL temp |]
@@ -494,9 +422,9 @@ maintRes' =
 
 rootGrowth =
   [rule|
-    EPlant{thrt=tt}, Root{m=m}, Cell{c=c, s=s'} -->
-    EPlant{thrt=tt}, Root{m=m+ rc2m rg}, Cell{c=c-rgRes, s=s'}
-    @10*(rdem tt) [c - rgRes > cEqui]
+    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
+    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg}, Cell{attr=atr, c=c-rgRes, s=s'}
+    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
@@ -505,8 +433,8 @@ rootGrowth =
 
 rootMaint =
   [rule|
-    Root{m=m}, Cell{c=c, s=s'} -->
-    Root{m=m}, Cell{c=c-rm, s=s'}
+    Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
+    Root{attr=atr, m=m}, Cell{attr=atr, c=c-rm, s=s'}
     @1.0 [c-rm > 0.0]
       where
         rm = (rm2c m)/(m2c leafMass) * (maintRos leafMass rArea temp)
@@ -514,9 +442,9 @@ rootMaint =
 
 leafTransl =
   [rule|
-    Leaf{m=lm}, Root{m=rm}, Cell{c=c, s=s'} -->
-    Leaf{m=lm-c2m tl}, Root{m=rm}, Cell{c=c+tl}
-    @1.0 [c <= cEqui]
+    Leaf{attr=atr, m=lm}, Root{attr=atr,m=rm}, Cell{attr=atr, c=c, s=s'} -->
+    Leaf{attr=atr, m=lm-c2m tl}, Root{attr=atr, m=rm}, Cell{attr=atr, c=c+tl}
+    @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
       where
         cEqui = 0.05 * rArea,
         tl = (m2c lm / (m2c leafMass + rm2c rm)) * (cEqui - c)
@@ -524,52 +452,64 @@ leafTransl =
 
 rootTransl =
   [rule|
-     Root{m=rm}, Cell{c=c, s=s'} -->
-     Root{m=rm-rc2m tl}, Cell{c=c+tl, s=s'}
-     @1.0 [c <= cEqui]
+     Root{attr=atr, m=rm}, Cell{attr=atr, c=c, s=s'} -->
+     Root{attr=atr, m=rm-rc2m tl}, Cell{attr=atr, c=c+tl, s=s'}
+     @1.0 [c <= cEqui && (rm - rc2m tl > 0.0)]
        where
          cEqui = 0.05 * rArea,
          tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
   |]
 
 devp =
-  [rule| Plant{thrt=tt, dg=d, wct=w} -->
-         Plant{thrt=tt+(temp / 24.0),
-               dg=d+ptu* fp (wcUpd time w),
+  [rule| Plant{attr = atr, thrt=tt, dg=d, wct=w} -->
+         Plant{attr=atr, thrt=tt+(temp / 24.0),
+               dg=d+ptu* fp (wcUpd time w) (fi atr),
                wct=wcUpd time w}
          @1.0 |]
 
 devep =
-    [rule| Cell{s=s'}, EPlant{sdeg=sd, thrt=tt, dg=d, wct=w} -->
-           Cell{s=s'}, EPlant{sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0),
-                              dg=d+ptu* fp (wcUpd time w), wct=wcUpd time w}
+    [rule| Cell{s=s'}, EPlant{attr=atr, sdeg=sd, thrt=tt, dg=d, wct=w} -->
+           Cell{s=s'}, EPlant{attr=atr, sdeg=updSDeg s' sd t, thrt=tt+(temp / 24.0),
+                              dg=d+ptu* fp (wcUpd time w) (fi atr), wct=wcUpd time w}
            @1.0 |]
 
 eme =
   [rule| Plant{thrt=tt, attr=ar, dg=d, wct=w} -->
          EPlant{sdeg=calcSDeg si time, thrt=tt, attr=ar, dg=d, wct=w},
-          Leaf{ i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Leaf{ i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Root { m = pr * fR * (seedInput / (pr*fR + 2)) },
-          Cell{ c = initC * ra, s=si} @emerg tt [True]
+          Leaf{attr=ar, i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
+          Leaf{attr=ar, i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
+          Root {attr=ar, m = pr * fR * (seedInput / (pr*fR + 2)) },
+          Cell{attr=ar, c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
-              fR = rdem tt,
+              fR = rdem d thrmFinal,
+              ra = 2*cotArea*cos (10/180*pi),
+              si = initS * initC * ra
+  |]
+
+emeGerm =
+  [rule| Seed{mass=m, attr=atr, dg=d, art=a} -->
+         EPlant{sdeg=calcSDeg si time, thrt=0.0, attr=atr, dg=0.0, wct=0.0},
+         Leaf{attr=atr, i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Leaf{attr=atr, i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
+         Root {attr=atr, m = pr * fR * (seedInput / (pr*fR + 2)) },
+         Cell{attr=atr, c = initC * ra, s=si} @log' d [True]
+            where
+              cotMass = cotArea / slaCot,
+              fR = rdem 0.0 thrmFinal,
               ra = 2*cotArea*cos (10/180*pi),
               si = initS * initC * ra
   |]
 
 leafD =
-  [rule| FPlant{dg=d}, Leaf{ta=ta} --> FPlant{dg=d} @1.0 |]
+  [rule| FPlant{attr=atr,dg=d}, Leaf{attr=atr, ta=ta} --> FPlant{dg=d} @1.0 |]
 
 leafD' =
-  [rule| EPlant{thrt=tt}, Leaf{ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
+  [rule| EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
 
 transp =
     [rule|
-        System{flowerTimes=fts, rosMass=rms},
-        EPlant{attr=atr, dg=d, wct=w}, Root{m=m}, Cell{c=c, s=s'} -->
-        System{flowerTimes=(getMonth time:fts), rosMass=(leafMass:rms)},
+        EPlant{attr=atr, dg=d, wct=w}, Root{attr=atr,m=m}, Cell{attr=atr,c=c, s=s'} -->
         FPlant{attr=atr, dg=0.0}
         @logf' d
     |]
@@ -579,59 +519,12 @@ devfp =
 
 transfp =
     [rule|
-         System{ssTimes=ss}, FPlant{attr=atr, dg=d} -->
-         System{ssTimes=(getMonth time:ss)},
+         FPlant{attr=atr, dg=d} -->
          Seed{mass=1.6e-5, attr=atr, dg=0.0, art=0.0}
          @logs' d
    |]
 
 rootD = undefined
-
-md =
-    Model
-    { rules =
-        [ dev
-        , trans
-        , growth
-        , assim
-        , leafCr
-        , starchConv
-        , maintRes
-        , rootGrowth
-        , rootMaint
-        , leafTransl
-        , rootTransl
-        , devp
-        , devep
-        , eme
-        , leafD'
-        , leafD
-        , transp
-        , devfp
-        , transfp
-        ]
-    , initState = mkSt'
-    }
-
-mdLite =
-    Model
-    { rules =
-        [ growth
-        , assim
-        , leafCr
-        , starchConv
-        , starchFlow
-        , maintRes
-        , rootGrowth
-        , rootMaint
-        , leafTransl
-        , rootTransl
-        , devp
-        , devep
-        , eme
-        ]
-    , initState = mkSt'
-    }
 
 carbon =
     Observable
@@ -663,25 +556,8 @@ seedD = Observable { name = "seedD",
 thrtt = Observable { name = "thrtt",
                      gen = sumM thrt . select isEPlant }
 
-avgGermMonth = Observable { name = "avgGermM",
-                            gen = avgGerm }
-  where
-    avgGerm mix = fromIntegral (median (head [gts | (System{germTimes=gts}, _) <- mix]))
-
-avgFlMonth = Observable { name = "avgFlM",
-                            gen = avgFl }
-  where
-    avgFl mix = fromIntegral (median (head [fts | (System{flowerTimes=fts}, _) <- mix]))
-
-avgSMonth = Observable { name = "avgSM",
-                         gen = avgS }
-  where
-    avgS mix = fromIntegral (median (head [ss | (System{ssTimes=ss}, _) <- mix]))
-
-avgRosMass = Observable { name = "avgRosMass",
-                          gen = avgMass }
-  where
-    avgMass mix = avg (head [rms | (System{rosMass=rms}, _) <- mix ])
+plantDev = Observable { name = "plantD",
+                        gen = sumM dg . select isEPlant }
 
 trdem =
     Observable
@@ -690,14 +566,15 @@ trdem =
         \s ->
              let tt =
                      sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in rdem tt
+                         [ d
+                         | (EPlant {dg = d}, _) <- s ]
+             in rdem tt thrmFinal
     }
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
-hasFlowered mix = (sumM dg . select isEPlant) mix < 3212
+hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
 
-
+hasGerminated :: Multiset Agent -> Bool
+hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
