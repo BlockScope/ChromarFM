@@ -1,5 +1,10 @@
 module Agent where
 
+data Par
+    = V
+    | L Int
+    deriving (Eq, Show)
+
 data Env = Env
     { psim  :: Double
     , frepr :: Double
@@ -11,11 +16,11 @@ data Attrs = Attrs
   , fi  :: Double
   } deriving (Eq, Ord, Show)
 
-data Agent =
-    Seed { mass :: Double
-         , attr :: Attrs
-         , dg :: Double
-         , art :: Double}
+data Agent
+    = Seed { mass :: Double
+           , attr :: Attrs
+           , dg :: Double
+           , art :: Double}
     | Leaf { attr :: Attrs
            , i :: Int
            , ta :: Double
@@ -36,7 +41,16 @@ data Agent =
              , dg :: Double
              , wct :: Double}
     | FPlant { attr :: Attrs
-             , dg :: Double}
+             , dg :: Double
+             , nf :: Int }
+    | VAxis { nv :: Int }
+    | LAxis { nl :: Int
+            , llta :: Time}
+    | INode { pi :: Par
+            , iid :: Int}
+    | LLeaf { pl :: Par
+            , lid :: Int}
+    | Fruit { pf :: Par}
     deriving (Eq, Show)
 
 -- instance Eq Agent where
