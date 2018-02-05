@@ -22,7 +22,8 @@ logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
-thrmFinal = 4150
+---thrmFinal = 4150
+thrmFinal = 3500
 
 median :: [Int] -> Int
 median [] = 0
@@ -191,7 +192,9 @@ rm2c m = m * rootFactor
 rc2m c = c / rootFactor
 
 maint :: Double -> Double -> Int -> Obs -> Obs -> Double -> Double
-maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
+maint m a i iMax nl tempt
+  | tempt <= 0.0 = 0.0
+  | otherwise = rlRes * leafArea * (1 / 24.0)
   where
     p = 0.085
     p' = 0.016
@@ -202,7 +205,9 @@ maint m a i iMax nl tempt = rlRes * leafArea * (1 / 24.0)
     rl20 = (p * c + p') * 24
     rlRes = rl20 * exp ((actE * (tempt - 20)) / (293 * 8.314 * (tempt + 273)))
 
-maintRos m a tempt = rlRes * a * (1 / 24.0)
+maintRos m a tempt
+  | tempt <= 0.0 = 0.0
+  | otherwise = rlRes * a * (1 / 24.0)
   where
     p = 0.085
     p' = 0.016
@@ -439,7 +444,7 @@ leafTransl =
   [rule|
     Leaf{attr=atr, m=lm}, Root{attr=atr,m=rm}, Cell{attr=atr, c=c, s=s'} -->
     Leaf{attr=atr, m=lm-c2m tl}, Root{attr=atr, m=rm}, Cell{attr=atr, c=c+tl}
-    @1.0 [c <= cEqui]
+    @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
       where
         cEqui = 0.05 * rArea,
         tl = (m2c lm / (m2c leafMass + rm2c rm)) * (cEqui - c)
@@ -449,7 +454,7 @@ rootTransl =
   [rule|
      Root{attr=atr, m=rm}, Cell{attr=atr, c=c, s=s'} -->
      Root{attr=atr, m=rm-rc2m tl}, Cell{attr=atr, c=c+tl, s=s'}
-     @1.0 [c <= cEqui]
+     @1.0 [c <= cEqui && (rm - rc2m tl > 0.0)]
        where
          cEqui = 0.05 * rArea,
          tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
