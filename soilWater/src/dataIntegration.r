@@ -8,7 +8,7 @@ norInd <- c(211, 181)
 hourify <- function(dailyVals) {
     hrVals <- rep(0, length(dailyVals)*24)
 
-    for (i in 1:(length(swInds))) {
+    for (i in 1:(length(dailyVals))) {
         dayS <- (i-1)*24+1
         dayE <- i*24
         hrVals[dayS:dayE] <- dailyVals[i]
