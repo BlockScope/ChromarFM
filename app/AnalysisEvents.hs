@@ -662,7 +662,6 @@ mkHeatMap xtitle ytitle vals = layout
      layout = layout_plots .~ [plot]
            $ layout_title  .~ ""
            $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           
            $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
            $ layout_x_axis . laxis_title_style . font_size .~ 20.0
            $ layout_x_axis . laxis_title .~ xtitle
