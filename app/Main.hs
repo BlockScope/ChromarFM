@@ -67,8 +67,7 @@ mainLite outDir dur=
         , leaf5Mass
         , leaf10Mass
         , leaf18Mass  
-        , tLDemI 1
-        , tLDemI 18
+        , tLDem
         , tRDem  
         ]
         [0 .. dur]
@@ -81,4 +80,5 @@ main = do
   let outDir = args !! 0 :: FilePath
       tstart = read (args !! 1) :: Time
       tend = read (args !! 2) :: Time
+  print "running"
   mainLite outDir (tend - tstart)
