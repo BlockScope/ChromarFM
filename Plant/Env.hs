@@ -83,6 +83,8 @@ pperiod =
 
 thermal = when day temp `orElse` constant 0.0
 
+--thermal = temp
+
 ptu = (*) <$> thermal <*> pperiod
 
 tmin = -3.5
@@ -116,7 +118,6 @@ fp wc fi =
 
 
 --------seed dev --------------
-
 arUpd moist temp
   | moist <= psmax && moist >= psu = temp - tbar
   | moist < psu && moist > psl = ((psl - moist) / (psl - psu)) * (temp - tbar)
