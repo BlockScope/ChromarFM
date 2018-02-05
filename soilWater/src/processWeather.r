@@ -99,11 +99,31 @@ zipWith <- function(f, xs, ys) {
     return(zs)
 }
 
+zipWith3 <- function(f, xs, ys, zs) {
+    n <- length(xs)
+    res <- rep(0, n)
+
+    for (i in 1:n) {
+        res[i] <-  f(c(xs[i], ys[i], zs[i]))
+    }
+
+    return(res)
+}
+
 mkSWIndex <- function(year, month, loc) {
     sw1 <- aggrDaily(mkFName(swvl1, year, month), swvl1, loc, 4, mean)
     sw2 <- aggrDaily(mkFName(swvl2, year, month), swvl2, loc, 4, mean)
 
     return(sapply(zipWith(mean, sw1, sw2),
+                  indexifySW(0.151, 0.346)))
+}
+
+mkSWIndex3 <- function(year, month, loc) {
+    sw1 <- aggrDaily(mkFName(swvl1, year, month), swvl1, loc, 4, mean)
+    sw2 <- aggrDaily(mkFName(swvl2, year, month), swvl2, loc, 4, mean)
+    sw3 <- aggrDaily(mkFName(swvl3, year, month), swvl3, loc, 4, mean)
+
+    return(sapply(zipWith3(mean, sw1, sw2, sw3),
                   indexifySW(0.151, 0.346)))
 }
 
