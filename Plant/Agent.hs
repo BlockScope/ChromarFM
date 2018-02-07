@@ -44,7 +44,8 @@ data Agent
              , dg :: Double
              , nf :: Int }
     | VAxis { nv :: Int }
-    | LAxis { nl :: Int
+    | LAxis { lid :: Int
+            , nl :: Int
             , llta :: Double}
     | INode { pin :: Par
             , iid :: Int}
