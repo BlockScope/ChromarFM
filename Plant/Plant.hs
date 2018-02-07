@@ -509,13 +509,24 @@ leafD' =
 
 transp =
     [rule|
-        EPlant{attr=atr, dg=d, wct=w}, Root{attr=atr,m=m}, Cell{attr=atr,c=c, s=s'} -->
-        FPlant{attr=atr, dg=0.0}
+        EPlant{attr=atr, dg=d, wct=w} -->
+        FPlant{attr=atr, dg=0.0, nf=nL}, VAxis{nv=0}
         @logf' d
     |]
 
 devfp =
     [rule| FPlant{dg=d} --> FPlant{dg=d+disp} @1.0 |]
+
+vGrowth =
+  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} --> VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt}, Leaf{attr=atr, i=nL+1, ta=tt, m=0.0, a=0.0}, INode{pin=V, iid=n+1} @(rateApp lastThr (pCron' tt) tt) [n < vmax nf] |]
+
+vGrowthFruit =
+  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} --> FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt}, Fruit{pf=V}, INode{pin=V, iid=n+1} @(rateApp lastThr (pCron' tt) tt) [n >= vmax nf] |]
+
+lGrowth =
+  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} --> FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1}, LLeaf{pl=L i, lid=n+1} @(rateApp lastT (pCron' tt) tt) [time > tdelay i && n < lmax nf] |]
+
+lGrowthFruit =   [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} --> FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1}, Fruit{pf=L i} @(rateApp lastT (pCron' tt) tt) [n >= lmax nf] |]
 
 transfp =
     [rule|
