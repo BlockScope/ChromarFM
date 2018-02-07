@@ -45,8 +45,8 @@ data Agent
              , nf :: Int }
     | VAxis { nv :: Int }
     | LAxis { nl :: Int
-            , llta :: Time}
-    | INode { pi :: Par
+            , llta :: Double}
+    | INode { pin :: Par
             , iid :: Int}
     | LLeaf { pl :: Par
             , lid :: Int}
