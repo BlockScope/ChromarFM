@@ -330,7 +330,7 @@ vmax nf = 11
 
 lmax nf j = 6
 
-tdelay j = a0 + b0
+tdelay j = undefined -- a0 + b0
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -520,7 +520,7 @@ leafD' =
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
-        FPlant{attr=atr, dg=0.0, nf=nL, fthrt=tt}, VAxis{nv=0}
+        FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt}, VAxis{nv=0}
         @logf' d
     |]
 
@@ -528,16 +528,16 @@ devfp =
     [rule| FPlant{dg=d, fthrt=tt} --> FPlant{dg=d+disp, fthrt=tt+(temp / 24.0)} @1.0 |]
 
 vGrowth =
-  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} -->
+  [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
          VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
-         Leaf{attr=atr, i=nL+1, ta=tt, m=0.0, a=0.0},
+         Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
          INode{pin=V, iid=n+1}
          @(rateApp lastThr (pCron' tt) tt)
          [n < vmax nf]
   |]
 
 vGrowthFruit =
-  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} -->
+  [rule| FPlant{fthrt=tt, nf=nf}, VAxis{nv=n} -->
          FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
          Fruit{pf=V}, INode{pin=V, iid=n+1}
          @(rateApp lastThr (pCron' tt) tt)
@@ -545,19 +545,19 @@ vGrowthFruit =
   |]
 
 lGrowth =
-  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
+  [rule| FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
          FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
-         LLeaf{pl=L i, lid=n+1}
+         LLeaf{pll=L i, lid=n+1}
          @(rateApp lastT (pCron' tt) tt)
-         [tt > tdelay i && n < lmax nf]
+         [tt > tdelay i && n < lmax nf i]
   |]
 
 lGrowthFruit =
-  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
+  [rule| FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
          FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
          Fruit{pf=L i}
          @(rateApp lastT (pCron' tt) tt)
-         [n >= lmax nf]
+         [n >= lmax nf i]
   |]
 
 transfp =

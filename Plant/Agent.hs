@@ -50,7 +50,7 @@ data Agent
             , llta :: Double}
     | INode { pin :: Par
             , iid :: Int}
-    | LLeaf { pl :: Par
+    | LLeaf { pll :: Par
             , lid :: Int}
     | Fruit { pf :: Par}
     deriving (Eq, Show)
