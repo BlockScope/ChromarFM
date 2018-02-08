@@ -167,7 +167,29 @@ ldem i thra thr
           (1 - ((thr - thra) / texp i))**(b-1)
     maxDem = 0.0161
 
-rdem thrt tf = dem / maxDem
+beta a b texp tt = ((tt + 0.5) / texp)**(a-1) * (1 - ((tt + 0.5) / texp))**(b-1)
+
+betaN a b texp n tt 
+  | tt < texp = beta a b texp tt / n
+  | otherwise = 0.0
+    
+maxF a b texp = maximum [beta a b texp tt | tt <- [1 .. texp]]
+
+frDem = betaN af bf fExp (maxF af bf fExp)
+  where
+    af = 3.59
+    bf = 2.63
+    fExp = 476
+
+inDem = betaN ai bi inExp (maxF ai bi inExp)
+  where
+    ai = 2.62
+    bi = 2.98
+    inExp = 357
+
+rdem thrt tf
+  | thrt < tr = dem / maxDem
+  | otherwise = 0.0              
   where
     tr = rootLc * tf
     a = 13.03
@@ -330,7 +352,13 @@ vmax nf = 11
 
 lmax nf j = 6
 
-tdelay j = undefined -- a0 + b0
+tdelay j qd nf = a0 + b0*qd*(2*(f + 4 - j) + j - 1)
+  where
+    a0 = 191
+    b0 = 8.1 * 10e5
+    f = vmax nf
+
+plantDem = undefined
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -545,11 +573,11 @@ vGrowthFruit =
   |]
 
 lGrowth =
-  [rule| FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
-         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
+  [rule| Cell{c=c,s=s'}, FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
+         Cell{c=c,s=s'}, FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
          LLeaf{pll=L i, lid=n+1}
          @(rateApp lastT (pCron' tt) tt)
-         [tt > tdelay i && n < lmax nf i]
+         [tt > tdelay (fromIntegral i) (c/plantDem) nf && n < lmax nf i]
   |]
 
 lGrowthFruit =
