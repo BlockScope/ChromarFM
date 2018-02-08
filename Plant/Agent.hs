@@ -42,7 +42,8 @@ data Agent
              , wct :: Double}
     | FPlant { attr :: Attrs
              , dg :: Double
-             , nf :: Int }
+             , nf :: Int
+             , fthrt :: Double }
     | VAxis { nv :: Int }
     | LAxis { lid :: Int
             , nl :: Int
