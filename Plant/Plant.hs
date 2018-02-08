@@ -326,6 +326,12 @@ cAssim s t =
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
+vmax nf = 11
+
+lmax nf j = 6
+
+tdelay j = a0 + b0
+
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
 
@@ -391,7 +397,8 @@ assim =
 starchConv =
   [rule|
     EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c, s=s'} -->
-    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c+sd, s=s'-sd} @1.0 [not day && (s'-sd > 0.0)]
+    EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c+sd, s=s'-sd}
+    @1.0 [not day && (s'-sd > 0.0)]
   |]
 
 starchFlow =
@@ -401,7 +408,9 @@ starchFlow =
 
 leafCr =
     [rule|
-      EPlant{attr=atr, thrt=tt} --> EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
+      EPlant{attr=atr, thrt=tt} -->
+      EPlant{attr=atr, thrt=tt},
+      Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
       @(rateApp lastThr (pCron' tt) tt)
     |]
 
@@ -476,10 +485,10 @@ devep =
 eme =
   [rule| Plant{thrt=tt, attr=ar, dg=d, wct=w} -->
          EPlant{sdeg=calcSDeg si time, thrt=tt, attr=ar, dg=d, wct=w},
-          Leaf{attr=ar, i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Leaf{attr=ar, i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
-          Root {attr=ar, m = pr * fR * (seedInput / (pr*fR + 2)) },
-          Cell{attr=ar, c = initC * ra, s=si} @emerg tt [True]
+         Leaf{attr=ar, i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
+         Leaf{attr=ar, i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
+         Root {attr=ar, m = pr * fR * (seedInput / (pr*fR + 2)) },
+         Cell{attr=ar, c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
               fR = rdem d thrmFinal,
@@ -505,28 +514,51 @@ leafD =
   [rule| FPlant{attr=atr,dg=d}, Leaf{attr=atr, ta=ta} --> FPlant{dg=d} @1.0 |]
 
 leafD' =
-  [rule| EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, ta=ta} --> EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
+  [rule| EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, ta=ta} -->
+         EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
 
 transp =
     [rule|
-        EPlant{attr=atr, dg=d, wct=w} -->
-        FPlant{attr=atr, dg=0.0, nf=nL}, VAxis{nv=0}
+        EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
+        FPlant{attr=atr, dg=0.0, nf=nL, fthrt=tt}, VAxis{nv=0}
         @logf' d
     |]
 
 devfp =
-    [rule| FPlant{dg=d} --> FPlant{dg=d+disp} @1.0 |]
+    [rule| FPlant{dg=d, fthrt=tt} --> FPlant{dg=d+disp, fthrt=tt+(temp / 24.0)} @1.0 |]
 
 vGrowth =
-  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} --> VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt}, Leaf{attr=atr, i=nL+1, ta=tt, m=0.0, a=0.0}, INode{pin=V, iid=n+1} @(rateApp lastThr (pCron' tt) tt) [n < vmax nf] |]
+  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} -->
+         VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
+         Leaf{attr=atr, i=nL+1, ta=tt, m=0.0, a=0.0},
+         INode{pin=V, iid=n+1}
+         @(rateApp lastThr (pCron' tt) tt)
+         [n < vmax nf]
+  |]
 
 vGrowthFruit =
-  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} --> FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt}, Fruit{pf=V}, INode{pin=V, iid=n+1} @(rateApp lastThr (pCron' tt) tt) [n >= vmax nf] |]
+  [rule| FPlant{thrt=tt, nf=nf}, VAxis{nv=n} -->
+         FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
+         Fruit{pf=V}, INode{pin=V, iid=n+1}
+         @(rateApp lastThr (pCron' tt) tt)
+         [n >= vmax nf]
+  |]
 
 lGrowth =
-  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} --> FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1}, LLeaf{pl=L i, lid=n+1} @(rateApp lastT (pCron' tt) tt) [time > tdelay i && n < lmax nf] |]
+  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
+         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
+         LLeaf{pl=L i, lid=n+1}
+         @(rateApp lastT (pCron' tt) tt)
+         [tt > tdelay i && n < lmax nf]
+  |]
 
-lGrowthFruit =   [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} --> FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1}, Fruit{pf=L i} @(rateApp lastT (pCron' tt) tt) [n >= lmax nf] |]
+lGrowthFruit =
+  [rule| FPlant{thrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
+         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
+         Fruit{pf=L i}
+         @(rateApp lastT (pCron' tt) tt)
+         [n >= lmax nf]
+  |]
 
 transfp =
     [rule|
