@@ -431,7 +431,7 @@ growth =
 
 growthRepr =
     [rule|
-      FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
+      FPlant{attr=atr, fthrt=tt, rosM=rosm}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'},
       Cell{attr=atr, c=c-grRes, s=s'}
@@ -439,7 +439,7 @@ growthRepr =
         where
           ld = ldem i ta tt,
           cEqui = 0.05 * rArea,
-          gr = (pInfL * g leafMass) / 10,
+          gr = (pInfL * g rosm) / 10,
           a' = (sla' tt) * (m + (c2m gr)),
           grRes = 1.2422 * gr
     |]
@@ -499,6 +499,18 @@ rootGrowth =
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
+        rgRes = 1.2422 * rg
+  |]
+
+rootGrowthRepr =
+  [rule|
+    FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
+    FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m+ rc2m rg},
+    Cell{attr=atr, c=c-rgRes, s=s'}
+    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
+      where
+        cEqui = 0.05 * rArea,
+        rg = (pr * g rosm) / 10.0,
         rgRes = 1.2422 * rg
   |]
 
@@ -582,7 +594,7 @@ leafD' =
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
-        FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt}, VAxis{nv=0}
+        FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt, rosM = leafMass}, VAxis{nv=0}
         @logf' d
     |]
 
@@ -627,7 +639,7 @@ lGrowthFruit =
 
 llGrowth =
     [rule|
-      FPlant{attr=atr, fthrt=tt}, LLeaf{lm=m, la=a, lid=i, lta=ta},
+      FPlant{attr=atr, fthrt=tt, rosM=rosm}, LLeaf{lm=m, la=a, lid=i, lta=ta},
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, LLeaf{lm=m+(c2m gr), la=max a a'},
       Cell{attr=atr, c=c-grRes, s=s'}
@@ -635,14 +647,14 @@ llGrowth =
         where
           ld = ldem i ta tt,
           cEqui = 0.05 * rArea,
-          gr = (pInfL * g leafMass) / 10,
+          gr = (pInfL * g rosm) / 10,
           a' = (sla' tt) * (m + (c2m gr)),
           grRes = 1.2422 * gr
     |]
 
 inodeGrowth =
   [rule|
-      FPlant{attr=atr, fthrt=tt}, INode{im=m, ita=ta},
+      FPlant{attr=atr, fthrt=tt, rosM=rosm}, INode{im=m, ita=ta},
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, INode{im=m+(c2m gr)},
       Cell{attr=atr, c=c-grRes, s=s'}
@@ -650,13 +662,13 @@ inodeGrowth =
         where
           ld = inDem (tt - ta),
           cEqui = 0.05 * rArea,
-          gr = (pIn * g leafMass) / 10,
+          gr = (pIn * g rosm) / 10,
           grRes = 1.2422 * gr
   |]
 
 fruitGrowth =
   [rule|
-      FPlant{attr=atr, fthrt=tt}, Fruit{fm=m, fta=ta},
+      FPlant{attr=atr, fthrt=tt, rosM=rosm}, Fruit{fm=m, fta=ta},
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, Fruit{fm=m+(c2m gr)},
       Cell{attr=atr, c=c-grRes, s=s'}
@@ -664,7 +676,7 @@ fruitGrowth =
         where
           ld = frDem (tt - ta),
           cEqui = 0.05 * rArea,
-          gr = (pF * g leafMass) / 10,
+          gr = (pF * g rosm) / 10,
           grRes = 1.2422 * gr
   |]
 
