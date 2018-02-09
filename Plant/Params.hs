@@ -14,5 +14,9 @@ rootLc = 1.3 :: Double
 seedInput = 1.6e-5 :: Double
 pr = 2.64:: Double
 pl = 1.0 :: Double
+pInfL = 0.41 :: Double
+pIn = 0.69 :: Double
+pF = 21.45 :: Double
 rootFactor = 0.35 :: Double
 pN = 0.1782 :: Double
+

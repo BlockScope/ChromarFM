@@ -48,13 +48,17 @@ data Agent
     | LAxis { lid :: Int
             , nl :: Int
             , llta :: Double}
-    | INode { ita :: Double
+    | INode { im :: Double
+            , ita :: Double
             , pin :: Par
             , iid :: Int}
-    | LLeaf { lta :: Double
+    | LLeaf { lm :: Double
+            , la :: Double
+            , lta :: Double
             , pll :: Par
             , lid :: Int}
-    | Fruit { fta :: Double
+    | Fruit { fm :: Double
+             ,fta :: Double
              ,pf :: Par}
     deriving (Eq, Show)
 

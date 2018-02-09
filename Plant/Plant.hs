@@ -31,7 +31,7 @@ median [] = 0
 median xs = (sort xs) !! mid
   where
     mid = length xs  `div` 2
-
+    
 avg l =
     let (t, n) = foldl' (\(b, c) a -> (a + b, c + 1)) (0, 0) l
     in (realToFrac t / realToFrac n)
@@ -120,12 +120,14 @@ rosArea mix
     | nl <= 15 = sum lAreas
     | otherwise = sum $ take 13 (sortWith Down lAreas)
   where
-    lAreas =
+    vlAreas =
         [ a * ang
         | (Leaf {i = i
                 ,m = m
                 ,a = a}, _) <- mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
+    llAreas = [a | (LLeaf{la=a}, _) <- mix]
+    lAreas = vlAreas ++ llAreas
     nl = nLeaves mix
     iMax = maxLeaf mix
     toRad d = d / 180 * pi
@@ -427,6 +429,21 @@ growth =
           grRes = 1.2422 * gr
     |]
 
+growthRepr =
+    [rule|
+      FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'},
+      Cell{attr=atr, c=c-grRes, s=s'}
+      @10*ld [c-grRes > cEqui]
+        where
+          ld = ldem i ta tt,
+          cEqui = 0.05 * rArea,
+          gr = (pInfL * g leafMass) / 10,
+          a' = (sla' tt) * (m + (c2m gr)),
+          grRes = 1.2422 * gr
+    |]
+
 assim =
   [rule|
     Cell{c=c, s=s'} -->
@@ -606,6 +623,49 @@ lGrowthFruit =
          Fruit{fta=tt, pf=L i}
          @(rateApp lastT (pCron' tt) tt)
          [n >= lmax nf i]
+  |]
+
+llGrowth =
+    [rule|
+      FPlant{attr=atr, fthrt=tt}, LLeaf{lm=m, la=a, lid=i, lta=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      FPlant{attr=atr, fthrt=tt}, LLeaf{lm=m+(c2m gr), la=max a a'},
+      Cell{attr=atr, c=c-grRes, s=s'}
+      @10*ld [c-grRes > cEqui]
+        where
+          ld = ldem i ta tt,
+          cEqui = 0.05 * rArea,
+          gr = (pInfL * g leafMass) / 10,
+          a' = (sla' tt) * (m + (c2m gr)),
+          grRes = 1.2422 * gr
+    |]
+
+inodeGrowth =
+  [rule|
+      FPlant{attr=atr, fthrt=tt}, INode{im=m, ita=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      FPlant{attr=atr, fthrt=tt}, INode{im=m+(c2m gr)},
+      Cell{attr=atr, c=c-grRes, s=s'}
+      @10*ld [c-grRes > cEqui]
+        where
+          ld = inDem (tt - ta),
+          cEqui = 0.05 * rArea,
+          gr = (pIn * g leafMass) / 10,
+          grRes = 1.2422 * gr
+  |]
+
+fruitGrowth =
+  [rule|
+      FPlant{attr=atr, fthrt=tt}, Fruit{fm=m, fta=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      FPlant{attr=atr, fthrt=tt}, Fruit{fm=m+(c2m gr)},
+      Cell{attr=atr, c=c-grRes, s=s'}
+      @10*ld [c-grRes > cEqui]
+        where
+          ld = frDem (tt - ta),
+          cEqui = 0.05 * rArea,
+          gr = (pF * g leafMass) / 10,
+          grRes = 1.2422 * gr
   |]
 
 transfp =
