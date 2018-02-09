@@ -97,3 +97,23 @@ isFPlant _ = False
 isSeed :: Agent -> Bool
 isSeed (Seed{}) = True
 isSeed _ = False
+
+isFPlant :: Agent -> Bool
+isFPlant (FPlant{}) = True
+isFPlant _ = False
+
+isINode :: Agent -> Bool
+isINode (INode{}) = True
+isINode _ = False
+
+isFruit :: Agent -> Bool
+isFruit (Fruit{}) = True
+isFruit _ = False
+
+isLLeaf :: Agent -> Bool
+isLLeaf (LLeaf{}) = True
+isLLeaf _ = False
+
+isVAxis :: Agent -> Bool
+isVAxis (VAxis{}) = True
+isVAxis _ = False
