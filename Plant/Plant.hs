@@ -23,7 +23,8 @@ logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 
 ---thrmFinal = 4150
-thrmFinal = 3500
+thrmFinal = 2604
+thrmFinalR = 8448
 
 median :: [Int] -> Int
 median [] = 0
@@ -248,15 +249,10 @@ tLDem =
     { name = "totLDemand"
     , gen =
         \s ->
-             let tt =
-                     sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in (sum
-                    [ ldem i ta tt
-                    | (Leaf {ta = ta
-                            ,m = m
-                            ,i = i}, _) <- s])
+             let ett = sum [ thr | (EPlant {thrt = thr}, _) <- s ]
+                 ftt = sum [thr | (FPlant{fthrt=thr}, _) <- s]
+                 tt = ett + ftt
+             in (sum [ldem i ta tt | (Leaf {ta = ta, i = i}, _) <- s])
     }
 
 tLDemI i =
@@ -264,15 +260,10 @@ tLDemI i =
     { name = "totLDemand"
     , gen =
         \s ->
-             let tt =
-                     sum
-                         [ thr
-                         | (EPlant {thrt = thr}, _) <- s ]
-             in (sum
-                    [ ldem i ta tt
-                    | (Leaf {ta = ta
-                            ,m = m
-                            ,i = is}, _) <- s, is==i])
+             let ett = sum [thr | (EPlant {thrt = thr}, _) <- s ]
+                 ftt = sum [thr | (FPlant {fthrt = thr}, _) <- s ]
+                 tt = ett + ftt
+             in (sum [ldem i ta tt | (Leaf {ta = ta ,i = is}, _) <- s, is==i])
     }
 
 tRDem =
@@ -280,13 +271,30 @@ tRDem =
     { name = "tRDem"
     , gen =
         \s ->
-             let tt =
-                     sum
-                         [ d
-                         | (EPlant {dg = d}, _) <- s ]
-             in rdem tt thrmFinal
+             let ett = sum[ d | (EPlant {dg = d}, _) <- s ]
+                 ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+                 tt = ett + ftt
+             in if ett > 0.0 then rdem tt thrmFinal
+                else rdem tt thrmFinalR                  
     }
 
+tInDem =
+  Observable
+  { name = "inDem"
+  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+                in sum [inDem (ftt - ita) | (INode{ita=ita}, _) <- s]
+  }
+
+tFDem =
+  Observable
+  { name = "fDem"
+  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+                in  sum [frDem (ftt - fta) | (Fruit{fta=fta}, _) <- s] }
+tLLDem = 
+  Observable
+  { name = "llDem"
+  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+                in sum [ldem i lta ftt | (LLeaf{lta=lta, lid=i}, _) <- s] }    
 
 rsratio = Observable { name = "rsratio",
                        gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.64 * 1.03}
@@ -305,11 +313,7 @@ grD =
 
 cc s t =
     let cassim = cAssim s t
-    in sum
-           [ c
-           | (Cell {c = c
-                   ,s = s'}, _) <- s ] +
-       cassim
+    in sum [ c | (Cell {c = c ,s = s'}, _) <- s ] + cassim
 
 grC s t =
     let rArea = rosArea s
@@ -358,7 +362,14 @@ tdelay j qd nf = a0 + b0*qd*(2*(f + 4 - j) + j - 1)
     b0 = 8.1 * 10e5
     f = vmax nf
 
-plantDem = undefined
+plantDem =
+  Observable
+  { name = "totDem",
+    gen = \s -> (gen tLDem) s +
+                (gen tRDem) s +
+                (gen tInDem) s +
+                (gen tFDem) s +
+                (gen tLLDem) s }
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -389,7 +400,8 @@ $(return [])
 
 dev =
     [rule| Seed{attr=atr, dg=d, art=a} -->
-           Seed{attr=atr, dg = d + (htu time a (psi atr))/1.0, art=a + (arUpd moist temp)/1.0}
+           Seed{attr=atr, dg = d + (htu time a (psi atr))/1.0,
+                art=a + (arUpd moist temp)/1.0}
            @1.0
    |]
 
@@ -402,8 +414,10 @@ trans =
 
 growth =
     [rule|
-      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta}, Cell{attr=atr, c=c, s=s'} -->
-      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'}, Cell{attr=atr, c=c-grRes, s=s'}
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'},
+      Cell{attr=atr, c=c-grRes, s=s'}
       @10*ld [c-grRes > cEqui]
         where
           ld = ldem i ta tt,
@@ -430,9 +444,11 @@ starchConv =
   |]
 
 starchFlow =
-    [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra} @10.0 [c - extra > 0.0 && day]
-          where
-            extra = (max 0.0 (grC s t - grD)) / 10.0 |]
+  [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra}
+         @10.0
+         [c - extra > 0.0 && day]
+            where
+              extra = (max 0.0 (grC s t - grD)) / 10.0 |]
 
 leafCr =
     [rule|
@@ -460,7 +476,8 @@ maintRes' =
 rootGrowth =
   [rule|
     EPlant{attr=atr, dg=d}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
-    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg}, Cell{attr=atr, c=c-rgRes, s=s'}
+    EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg},
+    Cell{attr=atr, c=c-rgRes, s=s'}
     @10*(rdem d thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
@@ -553,13 +570,14 @@ transp =
     |]
 
 devfp =
-    [rule| FPlant{dg=d, fthrt=tt} --> FPlant{dg=d+disp, fthrt=tt+(temp / 24.0)} @1.0 |]
+    [rule| FPlant{dg=d, fthrt=tt} -->
+           FPlant{dg=d+disp, fthrt=tt+(temp / 24.0)} @1.0 |]
 
 vGrowth =
   [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
          VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
          Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
-         INode{pin=V, iid=n+1}
+         INode{ita=tt, pin=V, iid=n+1}
          @(rateApp lastThr (pCron' tt) tt)
          [n < vmax nf]
   |]
@@ -567,23 +585,25 @@ vGrowth =
 vGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, VAxis{nv=n} -->
          FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
-         Fruit{pf=V}, INode{pin=V, iid=n+1}
+         Fruit{fta=tt, pf=V}, INode{ita=tt, pin=V, iid=n+1}
          @(rateApp lastThr (pCron' tt) tt)
          [n >= vmax nf]
   |]
 
 lGrowth =
-  [rule| Cell{c=c,s=s'}, FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
-         Cell{c=c,s=s'}, FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
-         LLeaf{pll=L i, lid=n+1}
+  [rule| Cell{c=c,s=s'}, FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT},
+         Fruit{fta=ftt, pf=V} -->
+         Cell{c=c,s=s'}, FPlant{}, LAxis{nl=n+1, llta=tt},
+         INode{ita=tt, pin=L i, iid=n+1},
+         LLeaf{lta=tt, pll=L i, lid=n+1}
          @(rateApp lastT (pCron' tt) tt)
-         [tt > tdelay (fromIntegral i) (c/plantDem) nf && n < lmax nf i]
+         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n < lmax nf i]
   |]
 
 lGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
-         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{pin=L i, iid=n+1},
-         Fruit{pf=L i}
+         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{ita=tt, pin=L i, iid=n+1},
+         Fruit{fta=tt, pf=L i}
          @(rateApp lastT (pCron' tt) tt)
          [n >= lmax nf i]
   |]

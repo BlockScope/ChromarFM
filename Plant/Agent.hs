@@ -48,11 +48,14 @@ data Agent
     | LAxis { lid :: Int
             , nl :: Int
             , llta :: Double}
-    | INode { pin :: Par
+    | INode { ita :: Double
+            , pin :: Par
             , iid :: Int}
-    | LLeaf { pll :: Par
+    | LLeaf { lta :: Double
+            , pll :: Par
             , lid :: Int}
-    | Fruit { pf :: Par}
+    | Fruit { fta :: Double
+             ,pf :: Par}
     deriving (Eq, Show)
 
 -- instance Eq Agent where
