@@ -68,14 +68,17 @@ mainLite outDir dur=
         , nL
         , plantDev
         , thrtt
-        , leaf1Mass
-        , leaf5Mass
-        , leaf10Mass
-        , leaf18Mass  
         , tLDem
         , tRDem  
         ]
         [0 .. dur]
         outDir
-        mdLite
+        mdLiteGreenlab
         (\s -> getT s < dur)
+
+main = do
+  let outDir = "out/greenlabExps"
+      tstart = 0
+      tend = 1000
+  print "running"
+  mainLite outDir (tend - tstart)
