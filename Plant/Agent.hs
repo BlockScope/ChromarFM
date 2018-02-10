@@ -98,10 +98,6 @@ isSeed :: Agent -> Bool
 isSeed (Seed{}) = True
 isSeed _ = False
 
-isFPlant :: Agent -> Bool
-isFPlant (FPlant{}) = True
-isFPlant _ = False
-
 isINode :: Agent -> Bool
 isINode (INode{}) = True
 isINode _ = False
