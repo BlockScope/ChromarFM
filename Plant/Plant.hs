@@ -604,9 +604,9 @@ devfp =
 
 vGrowth =
   [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
-         VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
+         FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
          Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
-         INode{ita=tt, pin=V, iid=n+1}
+         INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
          [n < vmax nf]
   |]
@@ -614,7 +614,7 @@ vGrowth =
 vGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, VAxis{nv=n} -->
          FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
-         Fruit{fta=tt, pf=V}, INode{ita=tt, pin=V, iid=n+1}
+         Fruit{fta=tt, pf=V, fm=0.0}, INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
          [n >= vmax nf]
   |]
@@ -623,16 +623,16 @@ lGrowth =
   [rule| Cell{c=c,s=s'}, FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT},
          Fruit{fta=ftt, pf=V} -->
          Cell{c=c,s=s'}, FPlant{}, LAxis{nl=n+1, llta=tt},
-         INode{ita=tt, pin=L i, iid=n+1},
-         LLeaf{lta=tt, pll=L i, lid=n+1}
+         INode{ita=tt, pin=L i, iid=n+1, im=0.0},
+         LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}
          @(rateApp lastT (pCron' tt) tt)
          [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n < lmax nf i]
   |]
 
 lGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT} -->
-         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{ita=tt, pin=L i, iid=n+1},
-         Fruit{fta=tt, pf=L i}
+         FPlant{}, LAxis{nl=n+1, llta=tt}, INode{ita=tt, pin=L i, iid=n+1, im=0.0},
+         Fruit{fta=tt, pf=L i, fm=0.0}
          @(rateApp lastT (pCron' tt) tt)
          [n >= lmax nf i]
   |]
@@ -717,11 +717,20 @@ seedD = Observable { name = "seedD",
                      gen = sumM dg . select isSeed }
 
 thrtt = Observable { name = "thrtt",
-                     gen = sumM thrt . select isEPlant }
+                     gen = \s -> sum [tt | (EPlant{thrt=tt}, _) <- s ] +
+                                 sum [tt | (FPlant{fthrt=tt}, _) <- s ] }
 
 plantDev = Observable { name = "plantD",
-                        gen = sumM dg . select isEPlant }
+                        gen = \s -> sum [d | (EPlant{dg=d}, _) <- s] +
+                                    sum [d | (FPlant{dg=d}, _) <- s] }
+nVLeaves = Observable { name = "nvleaves",
+                        gen = \s -> sum [fromIntegral nv | (VAxis{nv=nv}, _) <- s] }
 
+isRStage = Observable { name = "rstage",
+                        gen = \s -> sum [fromIntegral 1 | (FPlant{}, _) <- s] }
+
+reprDev = Observable { name = "reprDev",
+                       gen = \s -> sum [d | (FPlant{dg=d}, _) <- s] }
 trdem =
     Observable
     { name = "rdem"
