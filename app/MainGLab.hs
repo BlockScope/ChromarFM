@@ -51,11 +51,8 @@ mdLiteGreenlab =
               vGrowth,
               vGrowthFruit,
               lGrowth,
-              lGrowthFruit,
-              llGrowth,
-              inodeGrowth,
-              fruitGrowth ],
-          initState= mkSt' }
+              lGrowthFruit]
+          ,initState= mkSt' }
 
 mainLite :: FilePath -> Time -> IO ()
 mainLite outDir dur=
@@ -69,7 +66,8 @@ mainLite outDir dur=
         , plantDev
         , thrtt
         , tLDem
-        , tRDem  
+        , tRDem
+        , nVLeaves
         ]
         [0 .. dur]
         outDir
@@ -77,8 +75,24 @@ mainLite outDir dur=
         (\s -> getT s < dur)
 
 main = do
-  let outDir = "out/greenlabExps"
-      tstart = 0
-      tend = 1000
-  print "running"
-  mainLite outDir (tend - tstart)
+    let outDir = "out/greenlabExps"
+        tstart = 0
+        tend = 1000
+    print "running"
+    runTW
+        mdLiteGreenlab
+        2000
+        "out/greenlabExps/text/out.txt"
+        [ carbon
+        , leafMass
+        , starch
+        , rootMass
+        , nL
+        , plantDev
+        , thrtt
+        , tLDem
+        , tRDem
+        , nVLeaves
+        , isRStage
+        , reprDev  
+        ] 
