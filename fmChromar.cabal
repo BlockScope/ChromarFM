@@ -67,7 +67,7 @@ executable fmLiteGreen
   hs-source-dirs: app
   main-is:  MainGLab.hs
   other-modules: Utils
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -O2 -Wall
   build-depends: base,
                  coloured-petri-nets,
                  fmChromar,
