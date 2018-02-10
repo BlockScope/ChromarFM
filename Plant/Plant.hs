@@ -283,19 +283,19 @@ tRDem =
 tInDem =
   Observable
   { name = "inDem"
-  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+  , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
                 in sum [inDem (ftt - ita) | (INode{ita=ita}, _) <- s]
   }
 
 tFDem =
   Observable
   { name = "fDem"
-  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+  , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
                 in  sum [frDem (ftt - fta) | (Fruit{fta=fta}, _) <- s] }
 tLLDem = 
   Observable
   { name = "llDem"
-  , gen = \s -> let ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
+  , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
                 in sum [ldem i lta ftt | (LLeaf{lta=lta, lid=i}, _) <- s] }    
 
 rsratio = Observable { name = "rsratio",
@@ -372,6 +372,13 @@ plantDem =
                 (gen tInDem) s +
                 (gen tFDem) s +
                 (gen tLLDem) s }
+
+tDelayObs =
+  Observable
+   { name = "tDelay",
+     gen = \s -> let q = sum [c | (Cell{c=c}, _) <- s]
+                     d = (gen plantDem) s
+                 in tdelay 1 (q/d) 10 }
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -584,12 +591,13 @@ emeGerm =
               si = initS * initC * ra
   |]
 
-leafD =
-  [rule| FPlant{attr=atr,dg=d}, Leaf{attr=atr, ta=ta} --> FPlant{dg=d} @1.0 |]
-
 leafD' =
   [rule| EPlant{attr=atr, thrt=tt}, Leaf{attr=atr, ta=ta} -->
-         EPlant{thrt=tt} @1.0 [tt > ts + ta] |]
+         EPlant{attr=atr, thrt=tt} @1.0 [tt > ts + ta] |]
+
+leafD =
+  [rule| FPlant{fthrt=tt}, Leaf{attr=atr, ta=ta} -->
+         FPlant{fthrt=tt} @1.0 [tt > ts + ta] |]
 
 transp =
     [rule|
@@ -608,7 +616,7 @@ vGrowth =
          Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
          INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [n < vmax nf]
+         [n+1 < vmax nf]
   |]
 
 vGrowthFruit =
@@ -616,7 +624,7 @@ vGrowthFruit =
          FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
          Fruit{fta=tt, pf=V, fm=0.0}, INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [n >= vmax nf]
+         [n+1 == vmax nf]
   |]
 
 lGrowth =
@@ -626,7 +634,7 @@ lGrowth =
          INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}
          @(rateApp lastT (pCron' tt) tt)
-         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n < lmax nf i]
+         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n + 1 < lmax nf i]
   |]
 
 lGrowthFruit =
@@ -634,7 +642,7 @@ lGrowthFruit =
          FPlant{}, LAxis{nl=n+1, llta=tt}, INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          Fruit{fta=tt, pf=L i, fm=0.0}
          @(rateApp lastT (pCron' tt) tt)
-         [n >= lmax nf i]
+         [n + 1 == lmax nf i]
   |]
 
 llGrowth =
@@ -731,6 +739,13 @@ isRStage = Observable { name = "rstage",
 
 reprDev = Observable { name = "reprDev",
                        gen = \s -> sum [d | (FPlant{dg=d}, _) <- s] }
+
+nLAxis = Observable { name = "nLAxis",
+                      gen = \s -> sum [1 | (LAxis{}, _) <- s] }
+
+gLAxis i = Observable { name = "gLAxis" ++ show i,
+                        gen = \s -> sum [fromIntegral nl | (LAxis{lid=li, nl=nl}, _) <- s, li == i] }
+
 trdem =
     Observable
     { name = "rdem"
