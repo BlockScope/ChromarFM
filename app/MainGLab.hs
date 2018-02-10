@@ -104,5 +104,6 @@ main = do
         , plantDem
         , tInDem
         , tFDem
-        , tLLDem  
+        , tLLDem
+        , apFruit  
         ] 
