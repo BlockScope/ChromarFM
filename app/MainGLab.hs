@@ -45,7 +45,6 @@ mdLiteGreenlab =
               leafTransl,
               rootTransl,
               devep,
-              leafD',
               transp,
               devfp,
               vGrowth,
@@ -94,5 +93,16 @@ main = do
         , tRDem
         , nVLeaves
         , isRStage
-        , reprDev  
+        , reprDev
+        , nLAxis
+        , gLAxis 1
+        , gLAxis 3
+        , gLAxis 5
+        , gLAxis 8
+        , gLAxis 10
+        , tDelayObs
+        , plantDem
+        , tInDem
+        , tFDem
+        , tLLDem  
         ] 
