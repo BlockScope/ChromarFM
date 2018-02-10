@@ -358,10 +358,10 @@ vmax nf = 11
 
 lmax nf j = 6
 
-tdelay j qd nf = a0 + b0*qd*(2*(f + 4 - j) + j - 1)
+tdelay j qd nf = a0 + b0*(2*(f + 4 - j) + j - 1)
   where
     a0 = 191
-    b0 = 8.1 * 10e5
+    b0 = 8.1 -- * 10e5
     f = vmax nf
 
 plantDem =
@@ -629,12 +629,13 @@ vGrowthFruit =
 
 lGrowth =
   [rule| Cell{c=c,s=s'}, FPlant{fthrt=tt, nf=nf}, LAxis{lid=i, nl=n, llta=lastT},
-         Fruit{fta=ftt, pf=V} -->
+         Fruit{fta=ftt, pf=p, fm=m} -->
          Cell{c=c,s=s'}, FPlant{}, LAxis{nl=n+1, llta=tt},
          INode{ita=tt, pin=L i, iid=n+1, im=0.0},
-         LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}
+         LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}, Fruit{fta=ftt, pf=p, fm=m}
          @(rateApp lastT (pCron' tt) tt)
-         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n + 1 < lmax nf i]
+         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n + 1 < lmax nf i
+          && isV p]
   |]
 
 lGrowthFruit =
@@ -745,6 +746,9 @@ nLAxis = Observable { name = "nLAxis",
 
 gLAxis i = Observable { name = "gLAxis" ++ show i,
                         gen = \s -> sum [fromIntegral nl | (LAxis{lid=li, nl=nl}, _) <- s, li == i] }
+
+apFruit = Observable { name = "apFruit",
+                       gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
 
 trdem =
     Observable
