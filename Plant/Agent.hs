@@ -113,3 +113,8 @@ isLLeaf _ = False
 isVAxis :: Agent -> Bool
 isVAxis (VAxis{}) = True
 isVAxis _ = False
+
+
+isV :: Par -> Bool
+isV V = True
+isV _ = False
