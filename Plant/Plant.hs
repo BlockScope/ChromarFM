@@ -26,6 +26,8 @@ logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
 thrmFinal = 2604
 thrmFinalR = 8448
 
+dF = thrmFinal + thrmFinalR
+
 median :: [Int] -> Int
 median [] = 0
 median xs = (sort xs) !! mid
@@ -257,6 +259,25 @@ tLDem =
              in (sum [ldem i ta tt | (Leaf {ta = ta, i = i}, _) <- s])
     }
 
+tLLDem =
+  Observable
+  { name = "totLatDem"
+    , gen =
+        \s ->
+             let ftt = sum [ thr | (FPlant{fthrt=thr}, _) <- s]
+             in sum [ldem 3 lta ftt | (LLeaf {lta=lta}, _) <- s]
+    }
+
+tLeafDem =
+  Observable
+   {  name = "VLDem",
+      gen = \s -> (gen tLDem) s + (gen tLLDem) s }
+
+nLatLeaves =
+  Observable
+   { name = "nLatLeaves",
+     gen = \s -> sum [fromIntegral nl | (LAxis{nl=nl}, _) <- s] }
+
 tLDemI i =
     Observable
     { name = "totLDemand"
@@ -276,8 +297,8 @@ tRDem =
              let ett = sum[ d | (EPlant {dg = d}, _) <- s ]
                  ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
                  tt = ett + ftt
-             in if ett > 0.0 then rdem tt thrmFinal
-                else rdem tt thrmFinalR                  
+             in if ett > 0.0 then rdem tt dF
+                else rdem (tt + thrmFinal) dF
     }
 
 tInDem =
@@ -292,12 +313,7 @@ tFDem =
   { name = "fDem"
   , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
                 in  sum [frDem (ftt - fta) | (Fruit{fta=fta}, _) <- s] }
-tLLDem = 
-  Observable
-  { name = "llDem"
-  , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
-                in sum [ldem i lta ftt | (LLeaf{lta=lta, lid=i}, _) <- s] }    
-
+  
 rsratio = Observable { name = "rsratio",
                        gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.64 * 1.03}
 
@@ -502,7 +518,7 @@ rootGrowth =
     EPlant{attr=atr, dg=d}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
     EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg},
     Cell{attr=atr, c=c-rgRes, s=s'}
-    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
+    @10*(rdem d dF) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
@@ -514,7 +530,7 @@ rootGrowthRepr =
     FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
     FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m+ rc2m rg},
     Cell{attr=atr, c=c-rgRes, s=s'}
-    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
+    @10*(rdem (d + thrmFinal) dF) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g rosm) / 10.0,
@@ -654,7 +670,7 @@ llGrowth =
       Cell{attr=atr, c=c-grRes, s=s'}
       @10*ld [c-grRes > cEqui]
         where
-          ld = ldem i ta tt,
+          ld = ldem (i+2) ta tt,
           cEqui = 0.05 * rArea,
           gr = (pInfL * g rosm) / 10,
           a' = (sla' tt) * (m + (c2m gr)),
