@@ -105,5 +105,8 @@ main = do
         , tInDem
         , tFDem
         , tLLDem
-        , apFruit  
+        , apFruit
+        , tLLDem
+        , tLeafDem
+        , nLatLeaves  
         ] 
