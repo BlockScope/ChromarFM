@@ -313,6 +313,11 @@ tFDem =
   { name = "fDem"
   , gen = \s -> let ftt = sum[ tt | (FPlant {fthrt=tt}, _) <- s ]
                 in  sum [frDem (ftt - fta) | (Fruit{fta=fta}, _) <- s] }
+
+nFruits =
+  Observable
+  { name = "nFruits",
+    gen = \s -> sum [1 | (Fruit{}, _) <- s ] }
   
 rsratio = Observable { name = "rsratio",
                        gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.64 * 1.03}
@@ -370,9 +375,9 @@ cAssim s t =
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
-vmax nf = 11
+vmax nf = 9
 
-lmax nf j = 6
+lmax nf j = 3
 
 tdelay j qd nf = a0 + b0*(2*(f + 4 - j) + j - 1)
   where
@@ -398,6 +403,15 @@ tDelayObs =
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
+
+lleafMass = Observable { name = "lmass",
+                         gen = sumM lm . select isLLeaf }
+
+laxisMass i = Observable { name = "lmass" ++ show i,
+                           gen = \s -> sum [m  | (LLeaf{lm=m, pll=L li}, _) <- s, li == i] }
+
+fruitMass = Observable { name = "fruitMass",
+                         gen = sumM fm . select isFruit }
 
 leaf1Mass = Observable { name = "mass1",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i == 1] }
