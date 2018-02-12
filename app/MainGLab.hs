@@ -42,8 +42,8 @@ mdLiteGreenlab =
               maintRes,
               rootGrowth,
               rootMaint,
-              leafTransl,
-              rootTransl,
+              leafTransl',
+              rootTransl',
               devep,
               transp,
               devfp,
@@ -53,7 +53,10 @@ mdLiteGreenlab =
               lGrowthFruit,
               llGrowth,
               inodeGrowth,
-              fruitGrowth]
+              fruitGrowth,
+              lleafTransl,
+              inodeTransl,
+              fruitTransl]
           ,initState= mkSt' }
 
 main' = do
