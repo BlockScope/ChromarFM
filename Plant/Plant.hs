@@ -428,6 +428,16 @@ leaf12Mass = Observable { name = "mass12",
 leaf18Mass = Observable { name = "mass18",
                          gen = \s -> sum [m | (Leaf{i=i, m=m}, _) <- s, i ==18] }
 
+inodeMass = Observable { name = "inodeMass",
+                         gen = \s -> sum [m | (INode{im=m}, _) <- s] }
+
+plantMass = Observable { name = "plantMass",
+                         gen = \s -> (gen inodeMass) s +
+                                     (gen leafMass) s +
+                                     (gen rootMass) s +
+                                     (gen lleafMass) s +
+                                     (gen fruitMass) s }
+
 s2c s pp = (kStarch * s) / (24 - pp)
 
 emerg d
@@ -594,6 +604,15 @@ leafTransl =
         tl = (m2c lm / (m2c leafMass + rm2c rm)) * (cEqui - c)
   |]
 
+leafTransl' =
+  [rule|
+    Leaf{m=lm}, Cell{c=c,s=s'} -->
+    Leaf{m=lm-c2m tl}, Cell{c=c+tl, s=s'}
+    @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
+      where
+        cEqui = 0.05 * rArea,
+        tl = (lm / plantMass) * (cEqui - c) |]
+
 rootTransl =
   [rule|
      Root{attr=atr, m=rm}, Cell{attr=atr, c=c, s=s'} -->
@@ -603,6 +622,42 @@ rootTransl =
          cEqui = 0.05 * rArea,
          tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
   |]
+
+rootTransl' =
+  [rule|
+     Root{m=rm}, Cell{c=c,s=s'} -->
+     Root{m=rm-c2m tl}, Cell{c=c+tl, s=s'}
+     @1.0 [c <= cEqui && (rm - c2m tl > 0.0)]
+       where
+         cEqui = 0.05 * rArea,
+         tl = (rm / plantMass) * (cEqui - c) |]
+
+lleafTransl =
+  [rule|
+     LLeaf{lm=lm}, Cell{c=c,s=s'} -->
+     LLeaf{lm=lm - c2m tl}, Cell{c=c + tl, s=s'}
+     @1.0 [c <= cEqui && (lm - c2m tl) > 0.0]
+        where
+          cEqui = 0.05 * rArea,
+          tl = (lm / plantMass) * (cEqui - c) |]
+
+inodeTransl =
+  [rule|
+     INode{im=im}, Cell{c=c,s=s'} -->
+     INode{im=im - c2m tl}, Cell{c=c + tl, s=s'}
+     @1.0 [c <= cEqui && (im - c2m tl) > 0.0]
+        where
+          cEqui = 0.05 * rArea,
+          tl = (im / plantMass) * (cEqui - c) |]
+
+fruitTransl =
+  [rule|
+     Fruit{fm=fm}, Cell{c=c,s=s'} -->
+     Fruit{fm=fm - c2m tl}, Cell{c=c + tl, s=s'}
+     @1.0 [c <= cEqui && (fm - c2m tl) > 0.0]
+        where
+          cEqui = 0.05 * rArea,
+          tl = (fm / plantMass) * (cEqui - c) |]
 
 devp =
   [rule| Plant{attr = atr, thrt=tt, dg=d, wct=w} -->
@@ -805,15 +860,7 @@ gLAxis i = Observable { name = "gLAxis" ++ show i,
 apFruit = Observable { name = "apFruit",
                        gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
 
-inodeMass = Observable { name = "inodeMass",
-                         gen = \s -> sum [m | (INode{im=m}, _) <- s] }
 
-plantMass = Observable { name = "plantMass",
-                         gen = \s -> (gen inodeMass) s +
-                                     (gen leafMass) s +
-                                     (gen rootMass) s +
-                                     (gen lleafMass) s +
-                                     (gen fruitMass) s }
 trdem =
     Observable
     { name = "rdem"
