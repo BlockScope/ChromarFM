@@ -43,7 +43,8 @@ data Agent
     | FPlant { attr :: Attrs
              , dg :: Double
              , nf :: Int
-             , rosM :: Double  
+             , rosM :: Double
+             , rosA :: Double  
              , fthrt :: Double }
     | VAxis { nv :: Int }
     | LAxis { lid :: Int
