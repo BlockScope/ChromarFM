@@ -520,6 +520,30 @@ maintRes =
       where
         lmaint = maint m a i maxL nL temp |]
 
+lmaintRes =
+  [rule|
+    Cell{attr=atr, c=c, s=s'}, LLeaf{la=a,lid=i, lm=m} -->
+    Cell{attr=atr, c=c-lmaint, s=s'}, LLeaf{}
+    @1.0 [c-lmaint > 0]
+      where
+        lmaint = maint m a i maxL nL temp |]
+
+inMaintRes =
+  [rule|
+    Cell{attr=atr, c=c, s=s'}, FPlant{rosM=rm, rosA=ra}, INode{im=m} -->
+    Cell{attr=atr, c=c-imaint, s=s'}, FPlant{rosM=rm, rosA=ra},
+    INode{im=m} @1.0 [c-imaint > 0]
+      where
+        imaint = (m / rm) * (maintRos rm ra temp)|]
+
+frMaintRes =
+  [rule|
+    Cell{attr=atr, c=c, s=s'}, FPlant{rosM=rm, rosA=ra}, Fruit{fm=m} -->
+    Cell{attr=atr, c=c-fmaint, s=s'}, FPlant{rosM=rm, rosA=ra},
+    Fruit{fm=m} @1.0 [c-fmaint > 0]
+      where
+        fmaint = (m / rm) * (maintRos rm ra temp) |]
+
 maintRes' =
   [rule|
    Cell{c=c, s=s'} -->
@@ -632,7 +656,8 @@ leafD =
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
-        FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt, rosM = leafMass}, VAxis{nv=0}
+        FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt,
+               rosM=leafMass, rosA=rArea}, VAxis{nv=0}
         @logf' d
     |]
 
