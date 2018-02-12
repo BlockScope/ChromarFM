@@ -297,8 +297,8 @@ tRDem =
              let ett = sum[ d | (EPlant {dg = d}, _) <- s ]
                  ftt = sum[ d | (FPlant {dg = d}, _) <- s ]
                  tt = ett + ftt
-             in if ett > 0.0 then rdem tt dF
-                else rdem (tt + thrmFinal) dF
+             in if ett > 0.0 then rdem tt thrmFinal
+                else rdem tt thrmFinalR
     }
 
 tInDem =
@@ -566,7 +566,7 @@ rootGrowth =
     EPlant{attr=atr, dg=d}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
     EPlant{attr=atr, dg=d}, Root{attr=atr, m=m+ rc2m rg},
     Cell{attr=atr, c=c-rgRes, s=s'}
-    @10*(rdem d dF) [c - rgRes > cEqui]
+    @10*(rdem d thrmFinal) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g leafMass) / 10.0,
@@ -578,7 +578,7 @@ rootGrowthRepr =
     FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m}, Cell{attr=atr, c=c, s=s'} -->
     FPlant{attr=atr, dg=d, rosM=rosm}, Root{attr=atr, m=m+ rc2m rg},
     Cell{attr=atr, c=c-rgRes, s=s'}
-    @10*(rdem (d + thrmFinal) dF) [c - rgRes > cEqui]
+    @10*(rdem d thrmFinalR) [c - rgRes > cEqui]
       where
         cEqui = 0.05 * rArea,
         rg = (pr * g rosm) / 10.0,
