@@ -50,13 +50,17 @@ mdLiteGreenlab =
               vGrowth,
               vGrowthFruit,
               lGrowth,
-              lGrowthFruit]
+              lGrowthFruit,
+              llGrowth,
+              inodeGrowth,
+              fruitGrowth]
           ,initState= mkSt' }
 
-mainLite :: FilePath -> Time -> IO ()
-mainLite outDir dur=
+main' = do
+    let dur = 2000
+        outDir = "out/greenlabExps"
     goPlot
-        5
+        1
         [ carbon
         , leafMass
         , starch
@@ -67,13 +71,37 @@ mainLite outDir dur=
         , tLDem
         , tRDem
         , nVLeaves
-        ]
+        , isRStage
+        , reprDev
+        , nLAxis
+        , gLAxis 1
+        , gLAxis 3
+        , gLAxis 5
+        , gLAxis 8
+        , tDelayObs
+        , plantDem
+        , tInDem
+        , tFDem
+        , tLLDem
+        , apFruit
+        , tLLDem
+        , tLeafDem
+        , nLatLeaves
+        , lleafMass
+        , laxisMass 1
+        , laxisMass 3
+        , laxisMass 5
+        , laxisMass 8
+        , fruitMass
+        , tFDem
+        , nFruits  
+        ] 
         [0 .. dur]
         outDir
         mdLiteGreenlab
         (\s -> getT s < dur)
 
-main = do
+mainRun = do
     let outDir = "out/greenlabExps"
         tstart = 0
         tend = 1000
@@ -109,4 +137,6 @@ main = do
         , tLLDem
         , tLeafDem
         , nLatLeaves  
-        ] 
+        ]
+
+main = main'
