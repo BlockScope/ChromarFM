@@ -805,6 +805,15 @@ gLAxis i = Observable { name = "gLAxis" ++ show i,
 apFruit = Observable { name = "apFruit",
                        gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
 
+inodeMass = Observable { name = "inodeMass",
+                         gen = \s -> sum [m | (INode{im=m}, _) <- s] }
+
+plantMass = Observable { name = "plantMass",
+                         gen = \s -> (gen inodeMass) s +
+                                     (gen leafMass) s +
+                                     (gen rootMass) s +
+                                     (gen lleafMass) s +
+                                     (gen fruitMass) s }
 trdem =
     Observable
     { name = "rdem"
