@@ -35,12 +35,18 @@ mkSt' = ms
 mdLiteGreenlab =
   Model { rules =
              [growth,
+              growthRepr,
+              growthRepr',
               assim,
               leafCr,
               starchConv,
               starchFlow,
               maintRes,
+              lmaintRes,
+              inMaintRes,
+              frMaintRes,
               rootGrowth,
+              rootGrowthRepr,
               rootMaint,
               leafTransl',
               rootTransl',
@@ -77,11 +83,11 @@ main' = do
         , isRStage
         , reprDev
         , nLAxis
-        , gLAxis 1
-        , gLAxis 3
-        , gLAxis 5
-        , gLAxis 8
-        , tDelayObs
+        , gLAxis 20
+        , gLAxis 25
+        , gLAxis 30
+        , gLAxis 35
+        , leafMassObs 20  
         , plantDem
         , tInDem
         , tFDem
@@ -90,19 +96,16 @@ main' = do
         , tLLDem
         , tLeafDem
         , nLatLeaves
-        , lleafMass
-        , laxisMass 1
-        , laxisMass 3
-        , laxisMass 5
-        , laxisMass 8
-        , fruitMass
-        , tFDem
-        , nFruits  
+        , maxN
+        , ngLAxis
+        , tDelayObs 20
+        , tDelayObs 30
+        , tDelayObs 35  
         ] 
         [0 .. dur]
         outDir
         mdLiteGreenlab
-        (\s -> getT s < dur)
+        hasSSeeds
 
 mainRun = do
     let outDir = "out/greenlabExps"
@@ -113,7 +116,7 @@ mainRun = do
         mdLiteGreenlab
         2000
         "out/greenlabExps/text/out.txt"
-        [ carbon
+                [ carbon
         , leafMass
         , starch
         , rootMass
@@ -126,12 +129,11 @@ mainRun = do
         , isRStage
         , reprDev
         , nLAxis
-        , gLAxis 1
-        , gLAxis 3
-        , gLAxis 5
-        , gLAxis 8
-        , gLAxis 10
-        , tDelayObs
+        , gLAxis 20
+        , gLAxis 25
+        , gLAxis 30
+        , gLAxis 35
+        , leafMassObs 20  
         , plantDem
         , tInDem
         , tFDem
@@ -139,7 +141,12 @@ mainRun = do
         , apFruit
         , tLLDem
         , tLeafDem
-        , nLatLeaves  
-        ]
+        , nLatLeaves
+        , maxN
+        , ngLAxis
+        , tDelayObs 20
+        , tDelayObs 30
+        , tDelayObs 35  
+        ] 
 
-main = main'
+main = mainRun
