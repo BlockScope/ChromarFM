@@ -176,6 +176,7 @@ beta a b texp tt = ((tt + 0.5) / texp)**(a-1) * (1 - ((tt + 0.5) / texp))**(b-1)
 
 betaN a b texp n tt 
   | tt < texp = beta a b texp tt / n
+  | tt < 0.0 = 0.0              
   | otherwise = 0.0
     
 maxF a b texp = maximum [beta a b texp tt | tt <- [1 .. texp]]
@@ -375,15 +376,21 @@ cAssim s t =
         rArea = rosArea s
     in 0.875 * (dassim phR rArea)
 
-vmax nf = 9
+vmax nr = nr + (quot nr 4)
 
-lmax nf j = 3
-
-tdelay j qd nf = a0 + b0*(2*(f + 4 - j) + j - 1)
+lmax nr j
+  | j < vn || j > vm = 0
+  | otherwise = quot (6*(vm - j) + (j - vn)) (vm - vn) 
+    where
+      vm = vmax nr
+      vn = 3
+      
+tdelay :: Double -> Double -> Double -> Double
+tdelay j qd nf = a0 + b0*qd*(2*(f + 4 - j) + j - 1)
   where
-    a0 = 191
-    b0 = 8.1 -- * 10e5
-    f = vmax nf
+    a0 = 191 :: Double
+    b0 = 8.1* 10e5 :: Double -- 
+    f = fromIntegral (vmax (round nf))
 
 plantDem =
   Observable
@@ -394,12 +401,12 @@ plantDem =
                 (gen tFDem) s +
                 (gen tLLDem) s }
 
-tDelayObs =
+tDelayObs i =
   Observable
-   { name = "tDelay",
-     gen = \s -> let q = sum [c | (Cell{c=c}, _) <- s]
-                     d = (gen plantDem) s
-                 in tdelay 1 (q/d) 10 }
+   { name = "tDelay" ++ show i,
+     gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
+                     cs = sum [c | (Cell{c=c}, _) <- s]
+                 in tdelay (fromIntegral i) (cs/(gen plantDem $ s)) (fromIntegral nr)}
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -444,6 +451,9 @@ emerg d
   | d > 110 = 1.0
   | otherwise = 0.0
 
+apFruit = Observable { name = "apFruit",
+                       gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
+
 $(return [])
 ----- rules -------
 
@@ -478,15 +488,30 @@ growth =
 
 growthRepr =
     [rule|
-      FPlant{attr=atr, fthrt=tt, rosM=rosm}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
+      FPlant{attr=atr, fthrt=tt, rosM=rosm, nf=nf}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'},
       Cell{attr=atr, c=c-grRes, s=s'}
-      @10*ld [c-grRes > cEqui]
+      @10*ld [c-grRes > cEqui && i > nf]
         where
           ld = ldem i ta tt,
           cEqui = 0.05 * rArea,
           gr = (pInfL * g rosm) / 10,
+          a' = (sla' tt) * (m + (c2m gr)),
+          grRes = 1.2422 * gr
+    |]
+
+growthRepr' =
+    [rule|
+      FPlant{attr=atr, fthrt=tt, rosM=rosm, nf=nf}, Leaf{attr=atr, i=i, m=m, a=a, ta=ta},
+      Cell{attr=atr, c=c, s=s'} -->
+      FPlant{attr=atr, fthrt=tt}, Leaf{attr=atr, m=m+(c2m gr), a=max a a'},
+      Cell{attr=atr, c=c-grRes, s=s'}
+      @10*ld [c-grRes > cEqui && i <= nf]
+        where
+          ld = ldem i ta tt,
+          cEqui = 0.05 * rArea,
+          gr = (g rosm) / 10,
           a' = (sla' tt) * (m + (c2m gr)),
           grRes = 1.2422 * gr
     |]
@@ -518,7 +543,8 @@ leafCr =
     [rule|
       EPlant{attr=atr, thrt=tt} -->
       EPlant{attr=atr, thrt=tt},
-      Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea}
+      Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea},
+      LAxis{lid=(floor nL+1), llta=tt, nl=0}
       @(rateApp lastThr (pCron' tt) tt)
     |]
 
@@ -606,8 +632,8 @@ leafTransl =
 
 leafTransl' =
   [rule|
-    Leaf{m=lm}, Cell{c=c,s=s'} -->
-    Leaf{m=lm-c2m tl}, Cell{c=c+tl, s=s'}
+    Leaf{m=lm, a=a}, Cell{c=c,s=s'} -->
+    Leaf{m=lm-c2m tl, a=a}, Cell{c=c+tl, s=s'}
     @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
       where
         cEqui = 0.05 * rArea,
@@ -722,19 +748,21 @@ devfp =
 
 vGrowth =
   [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
-         FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
+         FPlant{attr=atr,fthrt=tt,nf=nf},
+         VAxis{nv=n+1},
+         LAxis{lid=floor nL+1, nl=0, llta=tt},
          Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
          INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [n+1 < vmax nf]
+         [floor nL < vmax nf]
   |]
 
 vGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, VAxis{nv=n} -->
-         FPlant{}, VAxis{nv=n+1}, LAxis{lid=n+1, nl=0, llta=tt},
-         Fruit{fta=tt, pf=V, fm=0.0}, INode{ita=tt, pin=V, iid=n+1, im=0.0}
+         FPlant{}, VAxis{nv=n+1},
+         Fruit{fta=tt, pf=V, fm=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [n+1 == vmax nf]
+         [floor nL == vmax nf && apFruit < 1.0]
   |]
 
 lGrowth =
@@ -744,7 +772,8 @@ lGrowth =
          INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}, Fruit{fta=ftt, pf=p, fm=m}
          @(rateApp lastT (pCron' tt) tt)
-         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) nf && n + 1 < lmax nf i
+         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) (fromIntegral nf)
+          && n < lmax nf i
           && isV p]
   |]
 
@@ -753,7 +782,7 @@ lGrowthFruit =
          FPlant{}, LAxis{nl=n+1, llta=tt}, INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          Fruit{fta=tt, pf=L i, fm=0.0}
          @(rateApp lastT (pCron' tt) tt)
-         [n + 1 == lmax nf i]
+         [n == lmax nf i]
   |]
 
 llGrowth =
@@ -820,20 +849,18 @@ starch =
     , gen = sumM s . select isCell
     }
 
-m1 =
+leafMassObs lind =
     Observable
-    { name = "mass1"
-    , gen = sumM m . selectAttr i 1 . select isLeaf
+    { name = "mass" ++ show lind
+    , gen = sumM m . selectAttr i lind . select isLeaf
     }
 
-m2 =
-    Observable
-    { name = "mass2"
-    , gen = sumM m . selectAttr i 2 . select isLeaf
-    }
+m1 = leafMassObs 1
 
 seedD = Observable { name = "seedD",
                      gen = sumM dg . select isSeed }
+
+        
 
 thrtt = Observable { name = "thrtt",
                      gen = \s -> sum [tt | (EPlant{thrt=tt}, _) <- s ] +
@@ -857,8 +884,12 @@ nLAxis = Observable { name = "nLAxis",
 gLAxis i = Observable { name = "gLAxis" ++ show i,
                         gen = \s -> sum [fromIntegral nl | (LAxis{lid=li, nl=nl}, _) <- s, li == i] }
 
-apFruit = Observable { name = "apFruit",
-                       gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
+ngLAxis = Observable { name = "ngLAxis",
+                       gen = \s -> let nfs = sum [nf | (FPlant{nf=nf}, _) <- s]
+                                   in sum [1 | (LAxis{nl=nl, lid=i}, _) <- s, nl == lmax nfs i] }
+
+maxN = Observable { name="maxN",
+                    gen = \s -> fromIntegral $ vmax (sum [nf | (FPlant{nf=nf}, _) <- s]) }
 
 
 trdem =
@@ -880,3 +911,6 @@ hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
 
 hasGerminated :: Multiset Agent -> Bool
 hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
+
+hasSSeeds :: Multiset Agent -> Bool
+hasSSeeds m = (sumM dg . select isSeed) mix < 8448
