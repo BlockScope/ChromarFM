@@ -28,6 +28,11 @@ thrmFinalR = 8448
 
 dF = thrmFinal + thrmFinalR
 
+ng = \s -> sum [nv | (VAxis{nv=nv}, _) <- s]
+
+ngs = Observable { name="ngs",
+                   gen = fromIntegral . ng }
+
 median :: [Int] -> Int
 median [] = 0
 median xs = (sort xs) !! mid
@@ -117,6 +122,7 @@ getAngle i iMax nl
         minAngle +
         dAngle * (fromIntegral $ i - iMax) / (fromIntegral $ nl - iMax)
 
+
 rosArea :: Multiset Agent -> Double
 rosArea mix
     | nl <= 15 = sum lAreas
@@ -130,7 +136,7 @@ rosArea mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
     llAreas = [a | (LLeaf{la=a}, _) <- mix]
     lAreas = vlAreas ++ llAreas
-    nl = nLeaves mix
+    nl = ng mix
     iMax = maxLeaf mix
     toRad d = d / 180 * pi
 
@@ -158,26 +164,29 @@ updSDeg s sdeg tt
   | isSunset tt = (s * kStarch) / (24 - (at photo' tt))
   | otherwise = sdeg
 
-sla' thr = slaCot * exp (slaExp*thr)
+sla' thr
+    | thr < 1000 = slaCot * exp (slaExp * thr)
+    | otherwise = slaCot * exp (slaExp * 1000)
   where
     slaCot = 0.144
     slaExp = -0.002
 
+-- only defined between [thra, thra+texp i]
 ldem i thra thr
-  | thr - thra > texp i = 0.0
-  | otherwise = dem / maxDem where
-    a = 3.07
-    b = 5.59
-    dem = ((thr - thra + 0.5) / texp i)**(a-1) *
-          (1 - ((thr - thra) / texp i))**(b-1)
-    maxDem = 0.0161
+  | (thr < thra) || (thr - thra > texp i) = 0.0 
+  | otherwise = dem / maxDem
+    where
+      a = 3.07
+      b = 5.59
+      dem = ((thr - thra + 0.5) / texp i)**(a-1) *
+            (1 - ((thr - thra) / texp i))**(b-1)
+      maxDem = 0.0161
 
-beta a b texp tt = ((tt + 0.5) / texp)**(a-1) * (1 - ((tt + 0.5) / texp))**(b-1)
+beta a b texp tt
+  | (tt < 0.0) || (tt > texp) = 0.0
+  | otherwise = ((tt + 0.5) / texp)**(a-1) * (1 - ((tt + 0.5) / texp))**(b-1)
 
-betaN a b texp n tt 
-  | tt < texp = beta a b texp tt / n
-  | tt < 0.0 = 0.0              
-  | otherwise = 0.0
+betaN a b texp n tt = beta a b texp tt / n
     
 maxF a b texp = maximum [beta a b texp tt | tt <- [1 .. texp]]
 
@@ -331,7 +340,7 @@ grD =
              let rosMass = gen leafMass s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
-                         (1.2422 * g rosMass * (gen rsratio s))
+                         (1.2422 * g rosMass * pr) ---(gen rsratio s))
                     else 0.0
     }
 
@@ -345,7 +354,7 @@ grC s t =
     in (cc s t) - tMaint - (0.05 * rArea)
 
 lMaint s t =
-    let nl = nLeaves s
+    let nl = ng s
         iMax = maxLeaf s
     in if (nl > 0)
            then (sum
@@ -389,7 +398,7 @@ tdelay :: Double -> Double -> Double -> Double
 tdelay j qd nf = a0 + b0*qd*(2*(f + 4 - j) + j - 1)
   where
     a0 = 191 :: Double
-    b0 = 8.1* 10e5 :: Double -- 
+    b0 = 8.1* 10e5 :: Double 
     f = fromIntegral (vmax (round nf))
 
 plantDem =
@@ -407,6 +416,12 @@ tDelayObs i =
      gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
                      cs = sum [c | (Cell{c=c}, _) <- s]
                  in tdelay (fromIntegral i) (cs/(gen plantDem $ s)) (fromIntegral nr)}
+
+qd =
+  Observable
+   { name = "qd",
+     gen = \s -> let cs = sum [c | (Cell{c=c}, _) <- s]
+                 in cs / (gen plantDem $ s) }
 
 leafMass = Observable { name = "mass",
                         gen = sumM m . select isLeaf }
@@ -541,10 +556,10 @@ starchFlow =
 
 leafCr =
     [rule|
-      EPlant{attr=atr, thrt=tt} -->
-      EPlant{attr=atr, thrt=tt},
-      Leaf{attr=atr, i=(floor nL+1), ta=tt, m=cotArea/slaCot, a=cotArea},
-      LAxis{lid=(floor nL+1), llta=tt, nl=0}
+      EPlant{attr=atr, thrt=tt}, VAxis{nv=n} -->
+      EPlant{attr=atr, thrt=tt}, VAxis{nv=n+1},
+      Leaf{attr=atr, i=n+1, ta=tt, m=cotArea/slaCot, a=cotArea},
+      LAxis{lid=n+1, llta=tt, nl=0}
       @(rateApp lastThr (pCron' tt) tt)
     |]
 
@@ -554,7 +569,7 @@ maintRes =
     Cell{attr=atr, c=c-lmaint}, Leaf{attr=atr, m=m}
     @1.0 [c-lmaint > 0]
       where
-        lmaint = maint m a i maxL nL temp |]
+        lmaint = maint m a i maxL ngs temp |]
 
 lmaintRes =
   [rule|
@@ -562,7 +577,7 @@ lmaintRes =
     Cell{attr=atr, c=c-lmaint, s=s'}, LLeaf{}
     @1.0 [c-lmaint > 0]
       where
-        lmaint = maint m a i maxL nL temp |]
+        lmaint = maint m a i maxL ngs temp |]
 
 inMaintRes =
   [rule|
@@ -632,8 +647,8 @@ leafTransl =
 
 leafTransl' =
   [rule|
-    Leaf{m=lm, a=a}, Cell{c=c,s=s'} -->
-    Leaf{m=lm-c2m tl, a=a}, Cell{c=c+tl, s=s'}
+    Leaf{ta=ta, m=lm, a=a}, Cell{c=c,s=s'} -->
+    Leaf{ta=ta, m=lm-c2m tl, a=sla' ta * (lm-c2m tl)}, Cell{c=c+tl, s=s'}
     @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
       where
         cEqui = 0.05 * rArea,
@@ -660,8 +675,8 @@ rootTransl' =
 
 lleafTransl =
   [rule|
-     LLeaf{lm=lm}, Cell{c=c,s=s'} -->
-     LLeaf{lm=lm - c2m tl}, Cell{c=c + tl, s=s'}
+     LLeaf{lta=ta, lm=lm, la=a}, Cell{c=c,s=s'} -->
+     LLeaf{lta=ta, lm=lm - c2m tl, la=sla' ta * (lm-c2m tl)}, Cell{c=c + tl, s=s'}
      @1.0 [c <= cEqui && (lm - c2m tl) > 0.0]
         where
           cEqui = 0.05 * rArea,
@@ -738,7 +753,7 @@ transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
         FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt,
-               rosM=leafMass, rosA=rArea}, VAxis{nv=0}
+               rosM=leafMass, rosA=rArea}
         @logf' d
     |]
 
@@ -750,11 +765,11 @@ vGrowth =
   [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
          FPlant{attr=atr,fthrt=tt,nf=nf},
          VAxis{nv=n+1},
-         LAxis{lid=floor nL+1, nl=0, llta=tt},
-         Leaf{attr=atr, i=floor nL+1, ta=tt, m=0.0, a=0.0},
+         LAxis{lid=n+1, nl=0, llta=tt},
+         Leaf{attr=atr, i=n+1, ta=tt, m=cotArea/slaCot, a=cotArea},
          INode{ita=tt, pin=V, iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [floor nL < vmax nf]
+         [n < vmax nf]
   |]
 
 vGrowthFruit =
@@ -762,7 +777,7 @@ vGrowthFruit =
          FPlant{}, VAxis{nv=n+1},
          Fruit{fta=tt, pf=V, fm=0.0}
          @(rateApp lastThr (pCron' tt) tt)
-         [floor nL == vmax nf && apFruit < 1.0]
+         [n == vmax nf && apFruit < 1.0]
   |]
 
 lGrowth =
@@ -913,4 +928,4 @@ hasGerminated :: Multiset Agent -> Bool
 hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
 
 hasSSeeds :: Multiset Agent -> Bool
-hasSSeeds m = (sumM dg . select isSeed) mix < 8448
+hasSSeeds mix = (sumM dg . select isSeed) mix < 8448
