@@ -164,9 +164,14 @@ updSDeg s sdeg tt
   | isSunset tt = (s * kStarch) / (24 - (at photo' tt))
   | otherwise = sdeg
 
-sla' thr
-    | thr < 1000 = slaCot * exp (slaExp * thr)
-    | otherwise = slaCot * exp (slaExp * 1000)
+-- sla' thr
+--     | thr < 1000 = slaCot * exp (slaExp * thr)
+--     | otherwise = slaCot * exp (slaExp * 1000)
+--   where
+--     slaCot = 0.144
+--     slaExp = -0.002
+
+sla' thr = slaCot * exp (slaExp * thr)
   where
     slaCot = 0.144
     slaExp = -0.002
@@ -340,7 +345,7 @@ grD =
              let rosMass = gen leafMass s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
-                         (1.2422 * g rosMass * pr) ---(gen rsratio s))
+                         (1.2422 * g rosMass * gen rsratio s)
                     else 0.0
     }
 
@@ -921,6 +926,15 @@ trdem =
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
+nMALeaves = Observable { name = "nMALeaves",
+                         gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
+                                     in sum [1 | (Leaf{i=i}, _) <- s, i > nr] }
+
+mMALeaves = Observable { name = "nMALeaves",
+                         gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
+                                     in sum [m | (Leaf{i=i, m=m}, _) <- s, i > nr] }
+
+            
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
 
