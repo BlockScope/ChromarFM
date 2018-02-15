@@ -24,7 +24,7 @@ mkSt' = ms
          Leaf{attr=atr, i = 1, ta = 0.0, m = cotArea/slaCot, a = cotArea},
          Leaf{attr=atr, i = 2, ta = 0.0, m = cotArea/slaCot, a = cotArea},
          Root {attr=atr, m = pr * fR * (seedInput / (pr*fR + 2)) },
-         Cell{attr=atr, c = initC * ra, s=si}]
+         Cell{attr=atr, c = initC * ra, s=si}, VAxis{nv=2}]
   where
     cotMass = cotArea / slaCot
     fR = rdem 0.0 thrmFinal
@@ -62,11 +62,13 @@ mdLiteGreenlab =
               fruitGrowth,
               lleafTransl,
               inodeTransl,
-              fruitTransl]
+              fruitTransl,
+              leafD,
+              leafD']
           ,initState= mkSt' }
 
 main' = do
-    let dur = 2000
+    let dur = 850
         outDir = "out/greenlabExps"
     goPlot
         1
@@ -79,42 +81,24 @@ main' = do
         , thrtt
         , tLDem
         , tRDem
-        , nVLeaves
-        , isRStage
-        , reprDev
-        , nLAxis
-        , gLAxis 20
-        , gLAxis 25
-        , gLAxis 30
-        , gLAxis 35
-        , leafMassObs 20  
-        , plantDem
-        , tInDem
-        , tFDem
-        , tLLDem
-        , apFruit
-        , tLLDem
-        , tLeafDem
-        , nLatLeaves
-        , maxN
-        , ngLAxis
-        , tDelayObs 20
-        , tDelayObs 30
-        , tDelayObs 35  
+        , leaf5Mass
+        , leaf10Mass
+        , leaf12Mass
+        , leaf18Mass
+        , rArea
+        , ngs  
         ] 
         [0 .. dur]
         outDir
         mdLiteGreenlab
-        hasSSeeds
+        (\s -> getT s < dur)
 
 mainRun = do
     let outDir = "out/greenlabExps"
-        tstart = 0
-        tend = 1000
     print "running"
     runTW
         mdLiteGreenlab
-        2000
+        1400
         "out/greenlabExps/text/out.txt"
                 [ carbon
         , leafMass
@@ -146,7 +130,8 @@ mainRun = do
         , ngLAxis
         , tDelayObs 20
         , tDelayObs 30
-        , tDelayObs 35  
+        , tDelayObs 35
+        , qd  
         ] 
 
-main = mainRun
+main = main'
