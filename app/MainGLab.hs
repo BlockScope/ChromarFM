@@ -60,9 +60,6 @@ mdLiteGreenlab =
               llGrowth,
               inodeGrowth,
               fruitGrowth,
-              lleafTransl,
-              inodeTransl,
-              fruitTransl,
               leafD,
               leafD']
           ,initState= mkSt' }
@@ -71,7 +68,7 @@ main' = do
     let dur = 850
         outDir = "out/greenlabExps"
     goPlot
-        1
+        5
         [ carbon
         , leafMass
         , starch
@@ -86,7 +83,9 @@ main' = do
         , leaf12Mass
         , leaf18Mass
         , rArea
-        , ngs  
+        , ngs
+        , isRStage
+        , plantMass  
         ] 
         [0 .. dur]
         outDir
@@ -98,26 +97,20 @@ mainRun = do
     print "running"
     runTW
         mdLiteGreenlab
-        1400
+        1600
         "out/greenlabExps/text/out.txt"
-                [ carbon
+        [ carbon
         , leafMass
         , starch
         , rootMass
         , nL
         , plantDev
-        , thrtt
         , tLDem
         , tRDem
         , nVLeaves
         , isRStage
         , reprDev
         , nLAxis
-        , gLAxis 20
-        , gLAxis 25
-        , gLAxis 30
-        , gLAxis 35
-        , leafMassObs 20  
         , plantDem
         , tInDem
         , tFDem
@@ -131,7 +124,10 @@ mainRun = do
         , tDelayObs 20
         , tDelayObs 30
         , tDelayObs 35
-        , qd  
+        , qd
+        , mMALeaves
+        , mMAInodes
+        , mMAFruits
         ] 
 
-main = main'
+main = mainRun
