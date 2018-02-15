@@ -122,7 +122,6 @@ getAngle i iMax nl
         minAngle +
         dAngle * (fromIntegral $ i - iMax) / (fromIntegral $ nl - iMax)
 
-
 rosArea :: Multiset Agent -> Double
 rosArea mix
     | nl <= 15 = sum lAreas
@@ -335,7 +334,16 @@ nFruits =
     gen = \s -> sum [1 | (Fruit{}, _) <- s ] }
   
 rsratio = Observable { name = "rsratio",
-                       gen = \s -> (gen tRDem s) / (gen tLDem s) * 2.64 * 1.03}
+                       gen = \s -> (gen tRDem s) / (gen tLDem s) * pr * 1.03}
+
+fsratio = Observable { name = "rsratio",
+                       gen = \s -> (gen tFDem s) / (gen tLDem s) * pF}
+
+isratio = Observable { name = "rsratio",
+                       gen = \s -> (gen tInDem s) / (gen tLDem s) * pIn}
+          
+llsratio = Observable { name = "rsratio",
+                       gen = \s -> (gen tLLDem s) / (gen tLDem s) * pInfL}
 
 grD =
     Observable
@@ -345,7 +353,10 @@ grD =
              let rosMass = gen leafMass s
              in if (nLeaves s) > 0
                     then (1.2422 * g rosMass) +
-                         (1.2422 * g rosMass * gen rsratio s)
+                         (1.2422 * g rosMass * gen rsratio s) +
+                         (1.2422 * g rosMass * gen fsratio s) +
+                         (1.2422 * g rosMass * gen isratio s) +
+                         (1.2422 * g rosMass * gen llsratio s)
                     else 0.0
     }
 
@@ -375,6 +386,23 @@ lMaint s t =
                              ,m = m}, _) <- s ])
            else 0.0
 
+llMaint s t =
+    let nl = ng s
+        iMax = maxLeaf s
+    in if (nl > 0)
+           then (sum
+                     [ maint
+                          m
+                          a
+                          i
+                          (fromIntegral iMax)
+                          (fromIntegral nl)
+                          (at temp t)
+                     | (LLeaf {lid = i
+                              ,la = a
+                              ,lm = m}, _) <- s ])
+           else 0.0
+
 rMaint s t =
     let lmass = gen leafMass s
         larea = rosArea s
@@ -383,7 +411,23 @@ rMaint s t =
            [ rosMaint * (rm2c rm / m2c lmass)
            | (Root {m = rm}, _) <- s ]
 
-totalMaint s t = rMaint s t + lMaint s t
+inMaint s t =
+    let lmass = gen leafMass s
+        larea = rosArea s
+        rosMaint = maintRos lmass larea (at temp t)
+    in sum
+           [ rosMaint * (m / lmass)
+           | (INode {im = m}, _) <- s ]
+
+frMaint s t =
+    let lmass = gen leafMass s
+        larea = rosArea s
+        rosMaint = maintRos lmass larea (at temp t)
+    in sum
+           [ rosMaint * (m / lmass)
+           | (Fruit {fm = m}, _) <- s ]
+
+totalMaint s t = rMaint s t + lMaint s t + inMaint s t + frMaint s t + llMaint s t
 
 cAssim s t =
     let phR = phRate (at temp t) (at par t) (at photo' t) (at moist t)
@@ -464,6 +508,13 @@ plantMass = Observable { name = "plantMass",
                                      (gen rootMass) s +
                                      (gen lleafMass) s +
                                      (gen fruitMass) s }
+
+plantCMass = Observable { name = "plantCMass",
+                         gen = \s -> (m2c $ (gen inodeMass) s) +
+                                     (m2c $ (gen leafMass) s) +
+                                     (rm2c $ (gen rootMass) s) +
+                                     (m2c $ (gen lleafMass) s) +
+                                     (m2c $ (gen fruitMass) s) }
 
 s2c s pp = (kStarch * s) / (24 - pp)
 
@@ -652,8 +703,8 @@ leafTransl =
 
 leafTransl' =
   [rule|
-    Leaf{ta=ta, m=lm, a=a}, Cell{c=c,s=s'} -->
-    Leaf{ta=ta, m=lm-c2m tl, a=sla' ta * (lm-c2m tl)}, Cell{c=c+tl, s=s'}
+    Leaf{ta=ta, m=lm}, Cell{c=c,s=s'} -->
+    Leaf{ta=ta, m=lm-c2m tl}, Cell{c=c+tl, s=s'}
     @1.0 [c <= cEqui && (lm-c2m tl > 0.0)]
       where
         cEqui = 0.05 * rArea,
@@ -666,7 +717,7 @@ rootTransl =
      @1.0 [c <= cEqui && (rm - rc2m tl > 0.0)]
        where
          cEqui = 0.05 * rArea,
-         tl = (rm2c rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
+         tl = (rm / (m2c leafMass + rm2c rm)) * (cEqui - c)
   |]
 
 rootTransl' =
@@ -792,7 +843,7 @@ lGrowth =
          INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}, Fruit{fta=ftt, pf=p, fm=m}
          @(rateApp lastT (pCron' tt) tt)
-         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) (fromIntegral nf)
+         [(tt - ftt) > tdelay (fromIntegral i) (grC s t /plantDem) (fromIntegral nf)
           && n < lmax nf i
           && isV p]
   |]
@@ -930,11 +981,17 @@ nMALeaves = Observable { name = "nMALeaves",
                          gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
                                      in sum [1 | (Leaf{i=i}, _) <- s, i > nr] }
 
-mMALeaves = Observable { name = "nMALeaves",
+mMALeaves = Observable { name = "mMALeaves",
                          gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
-                                     in sum [m | (Leaf{i=i, m=m}, _) <- s, i > nr] }
-
+                                     in if nr == 0.0 then 0.0
+                                        else sum [m | (Leaf{i=i, m=m}, _) <- s, i > nr] }
             
+mMAInodes = Observable { name = "mMAINodes",
+                         gen = \s -> sum [m | (INode{pin=V, im=m}, _) <- s] }
+
+mMAFruits = Observable { name = "mMAFruits",
+                         gen = \s -> sum [m | (Fruit{pf=V, fm=m}, _) <- s] }
+
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
 
