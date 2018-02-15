@@ -981,10 +981,15 @@ nMALeaves = Observable { name = "nMALeaves",
                          gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
                                      in sum [1 | (Leaf{i=i}, _) <- s, i > nr] }
 
-mMALeaves = Observable { name = "mMALeaves",
-                         gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
-                                     in if nr == 0.0 then 0.0
-                                        else sum [m | (Leaf{i=i, m=m}, _) <- s, i > nr] }
+mMALeaves =
+    Observable
+    { name = "mMALeaves"
+    , gen =
+        \s -> let nr = sum [ nf | (FPlant {nf = nf}, _) <- s ]
+             in if (fromIntegral nr) == 0.0
+                then 0.0
+                else sum [ m | (Leaf {i = i,m = m}, _) <- s, i > nr ]
+    }
             
 mMAInodes = Observable { name = "mMAINodes",
                          gen = \s -> sum [m | (INode{pin=V, im=m}, _) <- s] }
