@@ -610,6 +610,14 @@ starchFlow =
             where
               extra = (max 0.0 (grC s t - grD)) / 10.0 |]
 
+starchFlow' =
+  [rule| Cell{c=c, s=s'} --> Cell{c=c-extra, s=s'+extra}
+         @10.0
+         [c - extra > 0.0 && day]
+            where
+              cEqui = 0.05 * rArea,
+              extra = max 0.0 ((c - cEqui) / 10.0) |]
+
 leafCr =
     [rule|
       EPlant{attr=atr, thrt=tt}, VAxis{nv=n} -->
@@ -775,6 +783,7 @@ eme =
          Leaf{attr=ar, i = 1, ta = tt, m = cotArea/slaCot, a = cotArea},
          Leaf{attr=ar, i = 2, ta = tt, m = cotArea/slaCot, a = cotArea},
          Root {attr=ar, m = pr * fR * (seedInput / (pr*fR + 2)) },
+         VAxis{nv=2},
          Cell{attr=ar, c = initC * ra, s=si} @emerg tt [True]
             where
               cotMass = cotArea / slaCot,
@@ -843,7 +852,7 @@ lGrowth =
          INode{ita=tt, pin=L i, iid=n+1, im=0.0},
          LLeaf{lta=tt, pll=L i, lid=n+1, lm=0.0, la=0.0}, Fruit{fta=ftt, pf=p, fm=m}
          @(rateApp lastT (pCron' tt) tt)
-         [(tt - ftt) > tdelay (fromIntegral i) (grC s t /plantDem) (fromIntegral nf)
+         [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) (fromIntegral nf)
           && n < lmax nf i
           && isV p]
   |]
@@ -891,11 +900,11 @@ fruitGrowth =
       Cell{attr=atr, c=c, s=s'} -->
       FPlant{attr=atr, fthrt=tt}, Fruit{fm=m+(c2m gr)},
       Cell{attr=atr, c=c-grRes, s=s'}
-      @10*ld [c-grRes > cEqui]
+      @100*ld [c-grRes > cEqui]
         where
           ld = frDem (tt - ta),
           cEqui = 0.05 * rArea,
-          gr = (pF * g rosm) / 10,
+          gr = (pF * g rosm) / 100,
           grRes = 1.2422 * gr
   |]
 
@@ -994,8 +1003,24 @@ mMALeaves =
 mMAInodes = Observable { name = "mMAINodes",
                          gen = \s -> sum [m | (INode{pin=V, im=m}, _) <- s] }
 
+nMAFruits = Observable { name = "nMAFruits",
+                         gen = \s -> sum [1 | (Fruit{pf=V, fm=m}, _) <- s] }
+
+nLAFruits = Observable { name = "nLAFruits",
+                         gen = \s -> sum [1 | (Fruit{pf=L i, fm=m}, _) <- s] }
+            
+
 mMAFruits = Observable { name = "mMAFruits",
                          gen = \s -> sum [m | (Fruit{pf=V, fm=m}, _) <- s] }
+
+mLAInodes = Observable { name = "mLAINodes",
+                         gen = \s -> sum [m | (INode{pin=L i, im=m}, _) <- s] }
+            
+mLAFruits = Observable { name = "mLAFruits",
+                         gen = \s -> sum [m | (Fruit{pf=L i, fm=m}, _) <- s] }
+
+mLALeaves = Observable { name = "mLALeaves",
+                         gen = \s -> sum [m | (LLeaf{lm=m}, _) <- s]}
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
