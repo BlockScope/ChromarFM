@@ -32,15 +32,22 @@ mkSt' = ms
     si = initS * initC * ra
     atr = Attrs{ind=1, psi=0.0, fi=0.598}
 
+mkSt'' :: Multiset Agent
+mkSt'' = ms [Plant{attr=atr, thrt=1.0, dg=0.0, wct=0.0}]
+  where
+    atr = Attrs{ind=1, psi=0.0, fi=0.598}
+
 mdLiteGreenlab =
   Model { rules =
-             [growth,
+             [eme,
+              devp,
+              growth,
               growthRepr,
               growthRepr',
               assim,
               leafCr,
               starchConv,
-              starchFlow,
+              starchFlow',
               maintRes,
               lmaintRes,
               inMaintRes,
@@ -97,7 +104,7 @@ mainRun = do
     print "running"
     runTW
         mdLiteGreenlab
-        1600
+        1400
         "out/greenlabExps/text/out.txt"
         [ carbon
         , leafMass
@@ -128,6 +135,11 @@ mainRun = do
         , mMALeaves
         , mMAInodes
         , mMAFruits
+        , mLAInodes
+        , mLAFruits
+        , mLALeaves
+        , nMAFruits
+        , nLAFruits  
         ] 
 
 main = mainRun
