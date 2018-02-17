@@ -72,32 +72,51 @@ mdLiteGreenlab =
           ,initState= mkSt' }
 
 main' = do
-    let dur = 850
+    let dur = 1500
         outDir = "out/greenlabExps"
+    print "running"    
     goPlot
         5
         [ carbon
-        , leafMass
         , starch
         , rootMass
         , nL
         , plantDev
-        , thrtt
         , tLDem
         , tRDem
-        , leaf5Mass
-        , leaf10Mass
-        , leaf12Mass
-        , leaf18Mass
-        , rArea
-        , ngs
+        , nVLeaves
         , isRStage
-        , plantMass  
+        , reprDev
+        , nLAxis
+        , plantDem
+        , tInDem
+        , tFDem
+        , tLLDem
+        , apFruit
+        , tLLDem
+        , tLeafDem
+        , nLatLeaves
+        , maxN
+        , ngLAxis
+        , tDelayObs 20
+        , tDelayObs 30
+        , tDelayObs 35
+        , qd
+        , mMALeaves
+        , mMAInodes
+        , mMAFruits
+        , mLAInodes
+        , mLAFruits
+        , mLALeaves
+        , nMAFruits
+        , nLAFruits
+        , plantMass
+        , mRosLeaves  
         ] 
         [0 .. dur]
         outDir
         mdLiteGreenlab
-        (\s -> getT s < dur)
+        (\s -> hasSSeeds $ getM s)
 
 mainRun = do
     let outDir = "out/greenlabExps"
@@ -142,4 +161,4 @@ mainRun = do
         , nLAFruits  
         ] 
 
-main = mainRun
+main = main'
