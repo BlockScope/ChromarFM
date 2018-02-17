@@ -163,17 +163,17 @@ updSDeg s sdeg tt
   | isSunset tt = (s * kStarch) / (24 - (at photo' tt))
   | otherwise = sdeg
 
--- sla' thr
---     | thr < 1000 = slaCot * exp (slaExp * thr)
---     | otherwise = slaCot * exp (slaExp * 1000)
---   where
---     slaCot = 0.144
---     slaExp = -0.002
-
-sla' thr = slaCot * exp (slaExp * thr)
+sla' thr
+    | thr < 1000 = slaCot * exp (slaExp * thr)
+    | otherwise = slaCot * exp (slaExp * 1000)
   where
     slaCot = 0.144
     slaExp = -0.002
+
+-- sla' thr = slaCot * exp (slaExp * thr)
+--   where
+--     slaCot = 0.144
+--     slaExp = -0.002
 
 -- only defined between [thra, thra+texp i]
 ldem i thra thr
@@ -986,10 +986,18 @@ trdem =
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
+
+
+mRosLeaves =
+  Observable
+  { name = "mRosLeaves",
+    gen = \s -> let nr = sum [ nf | (FPlant {nf = nf}, _) <- s ]
+             in sum [ m | (Leaf {i = i,m = m}, _) <- s, i <= nr ]
+    }
+
 nMALeaves = Observable { name = "nMALeaves",
                          gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
                                      in sum [1 | (Leaf{i=i}, _) <- s, i > nr] }
-
 mMALeaves =
     Observable
     { name = "mMALeaves"
@@ -999,16 +1007,13 @@ mMALeaves =
                 then 0.0
                 else sum [ m | (Leaf {i = i,m = m}, _) <- s, i > nr ]
     }
-            
+
+
 mMAInodes = Observable { name = "mMAINodes",
                          gen = \s -> sum [m | (INode{pin=V, im=m}, _) <- s] }
 
 nMAFruits = Observable { name = "nMAFruits",
                          gen = \s -> sum [1 | (Fruit{pf=V, fm=m}, _) <- s] }
-
-nLAFruits = Observable { name = "nLAFruits",
-                         gen = \s -> sum [1 | (Fruit{pf=L i, fm=m}, _) <- s] }
-            
 
 mMAFruits = Observable { name = "mMAFruits",
                          gen = \s -> sum [m | (Fruit{pf=V, fm=m}, _) <- s] }
@@ -1021,6 +1026,9 @@ mLAFruits = Observable { name = "mLAFruits",
 
 mLALeaves = Observable { name = "mLALeaves",
                          gen = \s -> sum [m | (LLeaf{lm=m}, _) <- s]}
+
+nLAFruits = Observable { name = "nLAFruits",
+                         gen = \s -> sum [1 | (Fruit{pf=L i, fm=m}, _) <- s] }
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
