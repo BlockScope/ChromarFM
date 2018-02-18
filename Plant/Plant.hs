@@ -991,10 +991,8 @@ sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 mRosLeaves =
   Observable
   { name = "mRosLeaves",
-    gen = \s -> let nr = sum [ nf | (FPlant {nf = nf}, _) <- s ]
-             in sum [ m | (Leaf {i = i,m = m}, _) <- s, i <= nr ]
-    }
-
+    gen = \s -> (gen leafMass $ s) - (gen mMALeaves $ s) }
+  
 nMALeaves = Observable { name = "nMALeaves",
                          gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
                                      in sum [1 | (Leaf{i=i}, _) <- s, i > nr] }
