@@ -93,6 +93,12 @@ nL =
     , gen = fromIntegral . nLeaves
     }
 
+angleI i = Observable { name = "angle" ++ show i,
+                        gen = \s -> let iMax = maxLeaf s
+                                        nl = ng s
+                                    in 
+                                     getAngle i iMax nl }
+
 maxLeaf :: Multiset Agent -> Int
 maxLeaf mix = max ((i . head) $ sortLeaves) 2
   where
