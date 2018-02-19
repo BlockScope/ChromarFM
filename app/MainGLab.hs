@@ -69,7 +69,7 @@ mdLiteGreenlab =
               fruitGrowth,
               leafD,
               leafD']
-          ,initState= mkSt' }
+          ,initState= mkSt'' }
 
 main' = do
     let dur = 1500
@@ -111,8 +111,9 @@ main' = do
         , nMAFruits
         , nLAFruits
         , plantMass
-        , mRosLeaves  
-        ] 
+        , mRosLeaves
+        , rArea
+        ]
         [0 .. dur]
         outDir
         mdLiteGreenlab
@@ -123,7 +124,7 @@ mainRun = do
     print "running"
     runTW
         mdLiteGreenlab
-        1400
+        1450
         "out/greenlabExps/text/out.txt"
         [ carbon
         , leafMass
@@ -158,7 +159,10 @@ mainRun = do
         , mLAFruits
         , mLALeaves
         , nMAFruits
-        , nLAFruits  
+        , nLAFruits
+        , plantMass
+        , mRosLeaves
+        , rArea  
         ] 
 
 main = main'
