@@ -1,7 +1,7 @@
 module Agent where
 
 data Par
-    = V
+    = V Int
     | L Int
     deriving (Eq, Show)
 
@@ -45,7 +45,8 @@ data Agent
              , nf :: Int
              , rosM :: Double
              , rosA :: Double  
-             , fthrt :: Double }
+             , fthrt :: Double
+             , sdeg :: Double }
     | VAxis { nv :: Int }
     | LAxis { lid :: Int
             , nl :: Int
@@ -117,5 +118,9 @@ isVAxis _ = False
 
 
 isV :: Par -> Bool
-isV V = True
+isV (V i) = True
 isV _ = False
+
+getInd :: Par -> Int
+getInd (V i) = i
+getInd (L i) = i
