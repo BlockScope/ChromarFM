@@ -68,7 +68,8 @@ mdLiteGreenlab =
               inodeGrowth,
               fruitGrowth,
               leafD,
-              leafD']
+              leafD',
+              starchConvRepr]
           ,initState= mkSt'' }
 
 main' = do
