@@ -140,7 +140,7 @@ rosArea mix
                 ,a = a}, _) <- mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
     llAreas = [a | (LLeaf{la=a}, _) <- mix]
-    lAreas = vlAreas ++ llAreas
+    lAreas = vlAreas -- ++ llAreas
     nl = ng mix
     iMax = maxLeaf mix
     toRad d = d / 180 * pi
@@ -529,7 +529,7 @@ emerg d
   | otherwise = 0.0
 
 apFruit = Observable { name = "apFruit",
-                       gen = \s -> sum [1 | (Fruit{pf=V}, _) <- s] }
+                       gen = \s -> sum [1 | (Fruit{pf=V i}, _) <- s] }
 
 $(return [])
 ----- rules -------
@@ -606,6 +606,13 @@ starchConv =
   [rule|
     EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c, s=s'} -->
     EPlant{attr=atr, sdeg=sd}, Cell{attr=atr, c=c+sd, s=s'-sd}
+    @1.0 [not day && (s'-sd > 0.0)]
+  |]
+
+starchConvRepr =
+  [rule|
+    FPlant{sdeg=sd}, Cell{c=c, s=s'} -->
+    FPlant{sdeg=sd}, Cell{c=c+sd, s=s'-sd}
     @1.0 [not day && (s'-sd > 0.0)]
   |]
 
@@ -824,13 +831,13 @@ transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w, thrt=tt} -->
         FPlant{attr=atr, dg=0.0, nf=floor nL, fthrt=tt,
-               rosM=leafMass, rosA=rArea}
+               rosM=leafMass, rosA=rArea, sdeg=0.0}
         @logf' d
     |]
 
 devfp =
-    [rule| FPlant{dg=d, fthrt=tt} -->
-           FPlant{dg=d+disp, fthrt=tt+(temp / 24.0)} @1.0 |]
+    [rule| Cell{s=s'}, FPlant{dg=d, fthrt=tt, sdeg=sd} -->
+           Cell{s=s'}, FPlant{dg=d+disp, fthrt=tt+(temp / 24.0), sdeg=updSDeg s' sd t} @1.0 |]
 
 vGrowth =
   [rule| FPlant{attr=atr, fthrt=tt, nf=nf}, VAxis{nv=n} -->
@@ -838,7 +845,7 @@ vGrowth =
          VAxis{nv=n+1},
          LAxis{lid=n+1, nl=0, llta=tt},
          Leaf{attr=atr, i=n+1, ta=tt, m=cotArea/slaCot, a=cotArea},
-         INode{ita=tt, pin=V, iid=n+1, im=0.0}
+         INode{ita=tt, pin=V (n+1), iid=n+1, im=0.0}
          @(rateApp lastThr (pCron' tt) tt)
          [n < vmax nf]
   |]
@@ -846,7 +853,7 @@ vGrowth =
 vGrowthFruit =
   [rule| FPlant{fthrt=tt, nf=nf}, VAxis{nv=n} -->
          FPlant{}, VAxis{nv=n+1},
-         Fruit{fta=tt, pf=V, fm=0.0}
+         Fruit{fta=tt, pf=V (n+1), fm=0.0}
          @(rateApp lastThr (pCron' tt) tt)
          [n == vmax nf && apFruit < 1.0]
   |]
@@ -860,7 +867,7 @@ lGrowth =
          @(rateApp lastT (pCron' tt) tt)
          [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) (fromIntegral nf)
           && n < lmax nf i
-          && isV p]
+          && (getInd p) - i == 1]
   |]
 
 lGrowthFruit =
@@ -1014,13 +1021,13 @@ mMALeaves =
 
 
 mMAInodes = Observable { name = "mMAINodes",
-                         gen = \s -> sum [m | (INode{pin=V, im=m}, _) <- s] }
+                         gen = \s -> sum [m | (INode{pin=V i, im=m}, _) <- s] }
 
 nMAFruits = Observable { name = "nMAFruits",
-                         gen = \s -> sum [1 | (Fruit{pf=V, fm=m}, _) <- s] }
+                         gen = \s -> sum [1 | (Fruit{pf=V i, fm=m}, _) <- s] }
 
 mMAFruits = Observable { name = "mMAFruits",
-                         gen = \s -> sum [m | (Fruit{pf=V, fm=m}, _) <- s] }
+                         gen = \s -> sum [m | (Fruit{pf=V i, fm=m}, _) <- s] }
 
 mLAInodes = Observable { name = "mLAINodes",
                          gen = \s -> sum [m | (INode{pin=L i, im=m}, _) <- s] }
