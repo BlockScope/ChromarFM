@@ -24,24 +24,26 @@ fu = 0
 dataFile = "data/soil/valencia_20102011.csv"
 --dataFile = "data/weatherValencia60yrs.csv"
 
+shiftT = 285*24
+
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))
 
--- temp' = shift 6864 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 3)))
--- photo' = shift 6864 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 1)))
--- day' = shift 6864 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 2)))
--- moist = shift 6864 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 4)))
--- par = shift 6864 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 5)))
--- day  = day' <>*> constant 0.0
+temp' = shift shiftT (repeatEvery 17520 (unsafePerformIO (readTable dataFile 3)))
+photo' = shift shiftT (repeatEvery 17520 (unsafePerformIO (readTable dataFile 1)))
+day' = shift shiftT (repeatEvery 17520 (unsafePerformIO (readTable dataFile 2)))
+moist = shift shiftT (repeatEvery 17520 (unsafePerformIO (readTable dataFile 4)))
+par = shift shiftT (repeatEvery 17520 (unsafePerformIO (readTable dataFile 5)))
+day  = day' <>*> constant 0.0
 
-sunrise = 6
-sunset = 18 :: Double
-temp' = constant 22.0
-photo' = constant (sunset - sunrise)
-light = between sunrise sunset (constant True) (constant False)
-day = repeatEvery 24 light
-moist = constant 1.0
-par = constant 120.0
+-- sunrise = 6
+-- sunset = 18 :: Double
+-- temp' = constant 22.0
+-- photo' = constant (sunset - sunrise)
+-- light = between sunrise sunset (constant True) (constant False)
+-- day = repeatEvery 24 light
+-- moist = constant 1.0
+-- par = constant 120.0
 
 tempBase = constant 3.0
 temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
