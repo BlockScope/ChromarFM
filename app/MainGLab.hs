@@ -77,7 +77,7 @@ main' = do
         outDir = "out/greenlabExps"
     print "running"    
     goPlot
-        5
+        10
         [ carbon
         , starch
         , rootMass
@@ -125,7 +125,7 @@ mainRun = do
     print "running"
     runTW
         mdLiteGreenlab
-        1450
+        5000
         "out/greenlabExps/text/out.txt"
         [ carbon
         , leafMass
@@ -163,7 +163,7 @@ mainRun = do
         , nLAFruits
         , plantMass
         , mRosLeaves
-        , rArea  
+        , rArea
         ] 
 
-main = main'
+main = mainRun
