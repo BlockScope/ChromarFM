@@ -67,8 +67,18 @@ pCron' dthr
     adPCron = 11.9
 
 lastTa :: Multiset Agent -> Double
-lastTa mix = head (sortWith Down
-                   [ta | (Leaf{i=i,m=_, a=_, ta=ta}, _) <- mix])
+lastTa mix
+    | length tas == 0 = 0
+    | otherwise = head tas
+  where
+    tas =
+        (sortWith
+             Down
+             [ ta
+             | (Leaf {i = i
+                     ,m = _
+                     ,a = _
+                     ,ta = ta}, _) <- mix ])
 
 lastThr =
     Observable
@@ -96,8 +106,9 @@ nL =
 angleI i = Observable { name = "angle" ++ show i,
                         gen = \s -> let iMax = maxLeaf s
                                         nl = ng s
-                                    in 
-                                     getAngle i iMax nl }
+                                    in if nl < i then 0.0
+                                       else                
+                                         getAngle i iMax nl }
 
 maxLeaf :: Multiset Agent -> Int
 maxLeaf mix = max ((i . head) $ sortLeaves) 2
@@ -130,9 +141,11 @@ getAngle i iMax nl
 
 rosArea :: Multiset Agent -> Double
 rosArea mix
+    | cnl == 0 = 0.0
     | nl <= 15 = sum lAreas
     | otherwise = sum $ take 13 (sortWith Down lAreas)
   where
+    cnl = nLeaves mix
     vlAreas =
         [ a * ang
         | (Leaf {i = i
@@ -140,7 +153,7 @@ rosArea mix
                 ,a = a}, _) <- mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
     llAreas = [a | (LLeaf{la=a}, _) <- mix]
-    lAreas = vlAreas -- ++ llAreas
+    lAreas = vlAreas ++ llAreas
     nl = ng mix
     iMax = maxLeaf mix
     toRad d = d / 180 * pi
@@ -300,7 +313,7 @@ nLatLeaves =
 
 tLDemI i =
     Observable
-    { name = "totLDemand"
+    { name = "totLDemand" ++ show i
     , gen =
         \s ->
              let ett = sum [thr | (EPlant {thrt = thr}, _) <- s ]
@@ -468,9 +481,8 @@ plantDem =
 tDelayObs i =
   Observable
    { name = "tDelay" ++ show i,
-     gen = \s -> let nr = sum [nf | (FPlant{nf=nf}, _) <- s]
-                     cs = sum [c | (Cell{c=c}, _) <- s]
-                 in tdelay (fromIntegral i) (cs/(gen plantDem $ s)) (fromIntegral nr)}
+     gen = \s -> let cs = sum [c | (Cell{c=c}, _) <- s]
+                 in tdelay (fromIntegral i) (cs/(gen plantDem $ s)) (fromIntegral $ i+1)}
 
 qd =
   Observable
@@ -654,7 +666,7 @@ lmaintRes =
     Cell{attr=atr, c=c-lmaint, s=s'}, LLeaf{}
     @1.0 [c-lmaint > 0]
       where
-        lmaint = maint m a i maxL ngs temp |]
+        lmaint = maint m a i (fromIntegral $ i+1) ngs temp |]
 
 inMaintRes =
   [rule|
@@ -867,7 +879,7 @@ lGrowth =
          @(rateApp lastT (pCron' tt) tt)
          [(tt - ftt) > tdelay (fromIntegral i) (c/plantDem) (fromIntegral nf)
           && n < lmax nf i
-          && (getInd p) - i == 1]
+          && (getInd p) == i + 1]
   |]
 
 lGrowthFruit =
@@ -979,11 +991,10 @@ gLAxis i = Observable { name = "gLAxis" ++ show i,
 
 ngLAxis = Observable { name = "ngLAxis",
                        gen = \s -> let nfs = sum [nf | (FPlant{nf=nf}, _) <- s]
-                                   in sum [1 | (LAxis{nl=nl, lid=i}, _) <- s, nl == lmax nfs i] }
+                                   in sum [1 | (LAxis{nl=nl, lid=i}, _) <- s, nl > 0] }
 
 maxN = Observable { name="maxN",
                     gen = \s -> fromIntegral $ vmax (sum [nf | (FPlant{nf=nf}, _) <- s]) }
-
 
 trdem =
     Observable
@@ -998,7 +1009,6 @@ trdem =
     }
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
-
 
 
 mRosLeaves =
