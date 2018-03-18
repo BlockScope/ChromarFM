@@ -113,7 +113,7 @@ toWeek Lifecycle {pidL = p
                  ,pssetT = pst
                  ,germT = gt
                  ,flowerT = ft
-                 ,ssetT = st} =
+                 ,ssetT = st} = 
     Lifecycle
     { pidL = p
     , pssetT = fromIntegral $ truncate (pst / 7)
@@ -173,7 +173,7 @@ clusterLfsK' k lfs = map K.elements clusters
   where
     clusters =
         V.toList (K.kmeans (\lf -> UV.fromList [germD lf, vegSLenD lf]) K.euclidSq k lfs) :: [K.Cluster Lifecycle]
-                                                                                             
+
 getAtLevel :: Int -> Dendrogram a -> [[a]]
 getAtLevel n (Leaf k) = [[k]]
 getAtLevel 0 d = [elements d]
@@ -575,6 +575,7 @@ flowerDs = map flowerD
 ssetDs = map ssetD
 
 vegSLenD = vegSLen .> (/24)
+reprSLenD = reprSLen .> (/24)
 
 getLensD = map (getLen .> (/24))
 vegSLensD = map (vegSLen .> (/24))
