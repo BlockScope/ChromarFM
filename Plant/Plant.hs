@@ -142,8 +142,8 @@ getAngle i iMax nl
 rosArea :: Multiset Agent -> Double
 rosArea mix
     | cnl == 0 = 0.0
-    | nl <= 15 = sum vlAreas
-    | otherwise = sum $ take 13 (sortWith Down vlAreas)
+    | nl <= 15 = (sum vlAreas) + (sum llAreas)
+    | otherwise = (sum $ take 13 (sortWith Down vlAreas)) + (sum llAreas)
   where
     cnl = nLeaves mix
     vlAreas =
@@ -152,8 +152,7 @@ rosArea mix
                 ,m = m
                 ,a = a}, _) <- mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
-    llAreas = [a * cos $ toRad 10 | (LLeaf{la=a}, _) <- mix]
-    lAreas = vlAreas ++ llAreas
+    llAreas = [a * (cos $ toRad 10) | (LLeaf{la=a}, _) <- mix]
     nl = ng mix
     iMax = maxLeaf mix
     toRad d = d / 180 * pi
@@ -1010,7 +1009,6 @@ trdem =
 
 sdg = Observable { name="sdeg", gen= \s -> sum [sd | (EPlant{sdeg=sd}, _) <- s]}
 
-
 mRosLeaves =
   Observable
   { name = "mRosLeaves",
@@ -1028,7 +1026,6 @@ mMALeaves =
                 then 0.0
                 else sum [ m | (Leaf {i = i,m = m}, _) <- s, i > nr ]
     }
-
 
 mMAInodes = Observable { name = "mMAINodes",
                          gen = \s -> sum [m | (INode{pin=V i, im=m}, _) <- s] }
@@ -1061,4 +1058,4 @@ hasGerminated :: Multiset Agent -> Bool
 hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
 
 hasSSeeds :: Multiset Agent -> Bool
-hasSSeeds mix = (sumM dg . select isSeed) mix < 8448
+hasSSeeds mix = (sumM dg . select isFPlant) mix < 8448
