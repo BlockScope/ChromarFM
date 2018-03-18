@@ -21,10 +21,10 @@ to = 22
 
 fu = 0
 
-dataFile = "data/soil/valencia_20102011.csv"
---dataFile = "data/weatherValencia60yrs.csv"
+dataFile = "data/soil/oulu_20102011.csv"
+--dataFile = "data/weatherValencia60yrs.csv"β
 
-shiftT = 285*24
+shiftT = 238*24
 
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))
