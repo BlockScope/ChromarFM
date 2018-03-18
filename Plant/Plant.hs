@@ -142,8 +142,8 @@ getAngle i iMax nl
 rosArea :: Multiset Agent -> Double
 rosArea mix
     | cnl == 0 = 0.0
-    | nl <= 15 = sum lAreas
-    | otherwise = sum $ take 13 (sortWith Down lAreas)
+    | nl <= 15 = sum vlAreas
+    | otherwise = sum $ take 13 (sortWith Down vlAreas)
   where
     cnl = nLeaves mix
     vlAreas =
@@ -152,7 +152,7 @@ rosArea mix
                 ,m = m
                 ,a = a}, _) <- mix
         , let ang = cos $ toRad (getAngle i iMax nl) ]
-    llAreas = [a | (LLeaf{la=a}, _) <- mix]
+    llAreas = [a * cos $ toRad 10 | (LLeaf{la=a}, _) <- mix]
     lAreas = vlAreas ++ llAreas
     nl = ng mix
     iMax = maxLeaf mix
@@ -1050,6 +1050,9 @@ mLALeaves = Observable { name = "mLALeaves",
 
 nLAFruits = Observable { name = "nLAFruits",
                          gen = \s -> sum [1 | (Fruit{pf=L i, fm=m}, _) <- s] }
+
+totalFMass = Observable { name = "tFMass",
+                          gen = \s -> sum [m | (Fruit{fm=m}, _) <- s] }
 
 hasFlowered :: Multiset Agent -> Bool
 hasFlowered mix = (sumM dg . select isEPlant) mix < 2604
