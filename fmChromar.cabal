@@ -41,8 +41,8 @@ executable fmLife
                      random >=1.1 && <1.2,
                      text >= 1.2,
                      Chart,
+                     Chart-diagrams,
                      Chart-cairo,
-                     Chart-diagrams,     
                      containers >=0.5,
                      coloured-petri-nets,
                      normaldistribution >= 1.1,
@@ -76,4 +76,5 @@ executable fmLiteGreen
                  data-default-class,	
                  random >=1.1 && <1.2,	
                  Chart,
+                 Chart-diagrams,
                  Chart-cairo

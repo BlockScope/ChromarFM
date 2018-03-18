@@ -1,4 +1,6 @@
-resolver: lts-6.23
+#resolver: lts-10.8
+resolver: lts-10.8
+
 
 packages:
 - '.'
@@ -8,4 +10,5 @@ packages:
 #     commit: 2e39c0449cd3ec6b37ebda24eab73ea3a765388e
 #   extra-dep: true
   
-extra-deps: [normaldistribution-1.1.0.3, kmeans-vector-0.3.2, probable-0.1.2]
+extra-deps: [normaldistribution-1.1.0.3, kmeans-vector-0.3.2, probable-0.1.3, template-haskell-2.11.1.0, ghc-parser-0.2.0.1, ihaskell-0.9.0.2]
+allow-newer: true
