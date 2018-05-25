@@ -108,14 +108,15 @@ gopEventsEnv n bfout tend e = do
     let fout = bfout ++ "_" ++ (showEnv e) ++ ".txt"
         pfout = bfout ++ "_" ++ "psis" ++ (showEnv e) ++ ".txt"
     print $ showEnv e
-    psis <- normalsIO' (psim e, 1.0)
+    --psis <- normalsIO' (psim e, 1.0)
+    let psis=repeat (psim e)
     writeFile pfout (unlines (map show $ take n psis))
-    gopEvents fout (60 * 365 * 24) (mdSimpl e n (take n psis))
+    gopEvents fout (2 * 365 * 24) (mdSimpl e n (take n psis))
 
-main = do
+main' = do
     let n = 100
         tend = (60 * 365 * 24)
-        bfout = "out/lifeExpsOul/outEvents"
+        bfout = "out/lifeExpsVal/outEvents1"
     print "running..."
     mapM_
         (gopEventsEnv n bfout tend)
@@ -124,3 +125,10 @@ main = do
          , frepr = f
          }
         | p <- [0.0, 2.5], f <- [0.737, 0.598]]
+
+main = do
+  let n=1
+      tend = (2 * 365 * 24)
+      bfout = "out/lifeExpsVal/outEvents3"
+  print "running..."
+  gopEventsEnv n bfout tend (Env{psim=0.0, frepr=0.598})

@@ -22,26 +22,28 @@ to = 22
 fu = 0
 
 --dataFile = "data/rad/weatherValencia2yrsRadDaily.csv"
-dataFile = "data/weatherOulu60yrs.csv"
+dataFile = "data/weatherValencia60yrs.csv"
+
+shiftT = 1*24
 
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))
 
-temp' = unsafePerformIO (readTable dataFile 4)
-photo' = unsafePerformIO (readTable dataFile 2)
-day' = unsafePerformIO (readTable dataFile 3)
-moist = unsafePerformIO (readTable dataFile 5)
---par = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 6)))
-day  = day' <>*> constant 0.0
+-- temp' = shift shiftT (unsafePerformIO (readTable dataFile 4))
+-- photo' = shift shiftT (unsafePerformIO (readTable dataFile 2))
+-- day' = shift shiftT (unsafePerformIO (readTable dataFile 3))
+-- moist = shift shiftT (unsafePerformIO (readTable dataFile 5))
+-- --par = shift 6432 (repeatEvery 17520 (unsafePerformIO (readTable dataFile 6)))
+-- day  = day' <>*> constant 0.0
 
--- sunrise = 6
--- sunset = 18 :: Double
--- temp' = constant 22.0
--- photo' = constant (sunset - sunrise)
--- light = between sunrise sunset (constant True) (constant False)
--- day = repeatEvery 24 light
--- moist = constant 1.1
--- par = constant 120.0
+sunrise = 6
+sunset = 18 :: Double
+temp' = constant 24.0
+photo' = constant (sunset - sunrise)
+light = between sunrise sunset (constant True) (constant False)
+day = repeatEvery 24 light
+moist = constant 1.1
+par = constant 120.0
 
 tempBase = constant 3.0
 temp = max <$> (temp' <-*> tempBase) <*> pure 0.0
@@ -115,7 +117,6 @@ fp wc fi =
     wcRat = wc / wcsat
     fp1 = 1 - fi + (fi - fu) * wcRat
     fp2 = 1 - fu
-
 
 --------seed dev --------------
 arUpd moist temp

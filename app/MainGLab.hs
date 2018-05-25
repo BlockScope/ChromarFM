@@ -39,9 +39,7 @@ mkSt'' = ms [Plant{attr=atr, thrt=1.0, dg=0.0, wct=0.0}]
 
 mdLiteGreenlab =
   Model { rules =
-             [eme,
-              devp,
-              growth,
+             [growth,
               growthRepr,
               growthRepr',
               assim,
@@ -70,13 +68,13 @@ mdLiteGreenlab =
               leafD,
               leafD',
               starchConvRepr]
-          ,initState= mkSt'' }
+          ,initState= mkSt' }
 
 main' = do
-    let dur = 7440
+    let dur = (262+47)*24
         outDir = "out/greenlabExps"
     print "running"    
-    goPlot
+    goPlot'
         5
         [ carbon
         , leafMass
@@ -116,17 +114,16 @@ main' = do
         , rArea
         , totalFMass  
         ] 
-        [0 .. dur]
         outDir
         mdLiteGreenlab
-        (\s -> getT s < dur)
+        (\s -> hasSSeeds (getM s))
 
 mainRun = do
     let outDir = "out/greenlabExps"
     print "running"
     runTW
         mdLiteGreenlab
-        1848
+        1500
         "out/greenlabExps/text/out.txt"
         [ carbon
         , leafMass
@@ -167,4 +164,4 @@ mainRun = do
         , totalFMass  
         ] 
 
-main = mainRun
+main = main'

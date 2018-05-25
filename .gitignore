@@ -24,3 +24,6 @@ out/
 .Rhistory
 data/
 \.*
+*.png
+*.pdf
+*.svg

@@ -26,13 +26,13 @@ import Data.List.Split
 import Data.List
 
 mkVeg :: [Lifecycle] -> [(Double, Double)]
-mkVeg lfs = (0,0): (365, 365): (map (\lf -> (germD lf, vegSLenD lf)) lfs)
+mkVeg lfs = map (\lf -> (germD lf, vegSLenD lf)) lfs
 
 avgVeg :: [Lifecycle] -> (Double, Double)
 avgVeg lfs = (avg $ germDs lfs, avg $ vegSLensD lfs)
 
 mkRepr :: [Lifecycle] -> [(Double, Double)]
-mkRepr lfs = (0,0): (365, 365): (map (\lf -> (flowerD lf, reprSLenD lf)) lfs)
+mkRepr lfs = map (\lf -> (flowerD lf, reprSLenD lf)) lfs
 
 avgRepr :: [Lifecycle] -> (Double, Double)
 avgRepr lfs = (avg $ flowerDs lfs, avg $ reprSLensD lfs)
@@ -45,6 +45,9 @@ data TVal = TVal
   { t  :: !Double
   , val :: !Double
   } deriving (Generic, Show)
+
+instance ToDay TVal where
+  toDay TVal {t = t, val = v} = TVal {t = t / 24.0, val = v}
 
 instance FromRecord TVal
 
@@ -72,6 +75,10 @@ data GVals = GVals
   , fruitM :: [TVal]
   }
 
+instance ToDay GVals where
+  toDay GVals {rosM = rg, inflM = ig, fruitM = fg} =
+    GVals {rosM = map toDay rg, inflM = map toDay ig, fruitM = map toDay fg}
+
 instance Show GVals where
   show g = ""
 
@@ -81,6 +88,12 @@ data GCluster = GCluster
   , growth :: GVals
   , lfs :: [Lifecycle]
   } deriving (Show)
+
+class ToDay a where
+  toDay :: a -> a
+
+instance ToDay GCluster where
+  toDay GCluster{cid=i, fmass=f, growth=g, lfs=ls} = GCluster{cid=i, fmass=f, growth=toDay g, lfs=ls}
 
 mkCluster :: Int -> [Lifecycle] -> GCluster
 mkCluster i lfs =
@@ -130,6 +143,17 @@ getLineage cs lfs = map fst (takeWhile (\(lf, b) -> b > 0.0) (zip lfs bss))
   where
     mss = map (fmass .> breadthW) (assignCs cs lfs)
     bss = scanl (*) 1.0 mss
+
+getLineagePop :: [GCluster] -> [Lifecycle] -> Double
+getLineagePop cs lfs = sum bss
+  where
+    mss = map (fmass .> breadthW) (assignCs cs lfs)
+    bss = scanl (*) 1.0 mss
+
+getLineageR :: [GCluster] -> [Lifecycle] -> Double
+getLineageR cs lfs = avg mss
+  where
+    mss = map (fmass .> breadthW) (assignCs cs lfs)
     
 lineages ess = M.map (sortWith timeE .> dropYrsE 15 .> getLfs) ess
 
@@ -138,8 +162,7 @@ euclDist xs ys = sum $ zipWith (\x y -> (x - y) ** 2) xs ys
 
 extract :: GCluster -> [Double]
 extract c =
-  [ avg $ map (getLen .> (/ 24)) lives
-  , avg $ germDs lives
+  [ avg $ germDs lives
   , avg $ vegSLensD lives
   , avg $ flowerDs lives
   , avg $ reprSLensD lives
@@ -149,7 +172,7 @@ extract c =
 
 extractL :: Lifecycle -> [Double]
 extractL lf =
-  [getLen .> (/ 24) $ lf, germD lf, vegSLenD lf, flowerD lf, reprSLenD lf]
+  [germD lf, vegSLenD lf, flowerD lf, reprSLenD lf]
 
 addGrowth :: GVals -> GCluster -> GCluster
 addGrowth gvals c = c {fmass = fm, growth = gvals}
@@ -219,12 +242,15 @@ mkLine'' ds cs ytitle xtitle tvalss = layout
            $ def
            
 mkGrowthLines' gvals =
-  mkLine''
+  mkLineLeg
     ["rosette", "inflorescence", "fruit"]
     [blue, green, red]
     "mass (g)"
     "time (days)"
-    [toTuples $ rosM gvals, toTuples $ inflM gvals, toTuples $ fruitM gvals]
+    [ toTuples $ rosM gvals
+    , toTuples $ inflM gvals
+    , toTuples $ fruitM gvals
+    ]
 
 mkGrowthLinesLeg gvals =
   mkLineLeg
@@ -242,15 +268,14 @@ toDayG :: GVals -> GVals
 toDayG GVals {rosM = rm, inflM = im, fruitM = fm} =
   GVals {rosM = toDays rm, inflM = toDays im, fruitM = toDays fm}
 
-
-plotHistsGrid' fout x hists = renderableToFile foptions fout $ fillBackground def $ chart
+plotHistsGrid' fout x xd yd hists = renderableToFile foptions fout $ fillBackground def $ chart
   where
     histsG = map layoutToGrid hists
     fullGrid = aboveN (map besideN (chunksOf x histsG))
 
     chart = gridToRenderable fullGrid
 
-    foptions = fo_format .~ PDF $ fo_size .~ (800, 500) $ def
+    foptions = fo_format .~ PDF $ fo_size .~ (xd, yd) $ def
 
 mkGVals :: FilePath -> IO GVals
 mkGVals fp = do
@@ -317,21 +342,24 @@ paramsY = la_labelf .~ (map clLabels) $ la_nLabels .~ 4 $ la_nTicks .~ 4 $ def
 mkYrPoints :: [String] -> [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkYrPoints ds cs xtitle ytitle valss = layout
   where
-    plot d c vals = toPlot (plot_points_style .~ filledCircles 5 (c `withOpacity` 0.4)
+    plot d c vals = toPlot (plot_points_style .~ filledCircles 8 (c `withOpacity` 0.7)
               $ plot_points_values .~ vals
               $ plot_points_title .~ d
               $ def )   
     layout = layout_plots .~ [plot d c vals | (d, c, vals) <- zip3 ds cs valss]
-           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_x_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 30.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 30.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 30.0
            $ layout_x_axis . laxis_title .~ xtitle
-           $ layout_y_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_y_axis . laxis_title_style . font_size .~ 30.0
            $ layout_y_axis . laxis_title .~ ytitle
-           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ layout_y_axis . laxis_reverse .~ True
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 30.0 $ def)
            $ layout_x_axis . laxis_generate .~ (scaledAxis params (1.0, 365.0))
-           $ layout_y_axis . laxis_generate .~ (scaledAxis paramsY (0.5, 4.5))
+           $ layout_y_axis . laxis_generate .~ (scaledAxis paramsY (0.5, 3.1))
            $ def
+
+
 
 mkYrLines :: [String] -> [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkYrLines ds cs xtitle ytitle valss = layout
@@ -344,32 +372,31 @@ mkYrLines ds cs xtitle ytitle valss = layout
              $ plot_lines_title .~ d  
              $ def)
     layout = layout_plots .~ [plot d c vals | (d, c, vals) <- zip3 ds cs valss]
-           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_x_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 26.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 26.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 26.0
            $ layout_x_axis . laxis_title .~ xtitle
-           $ layout_y_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_y_axis . laxis_title_style . font_size .~ 26.0
            $ layout_y_axis . laxis_title .~ ytitle
-           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 26.0 $ def)
            $ layout_x_axis . laxis_generate .~ (scaledAxis params (1.0, 365.0))
-           $ layout_y_axis . laxis_generate .~ (scaledAxis paramsY (0.5, 4.5))
            $ def
 
 mkYrCloud :: [String] -> [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
 mkYrCloud ds cs xtitle ytitle valss = layout
   where
-    plot d c vals = toPlot (plot_points_style .~ filledCircles 5 (c `withOpacity` 0.4)
+    plot d c vals = toPlot (plot_points_style .~ filledCircles 2 (c `withOpacity` 0.5)
               $ plot_points_values .~ vals
               $ plot_points_title .~ d
               $ def )   
     layout = layout_plots .~ [plot d c vals | (d, c, vals) <- zip3 ds cs valss]
-           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 15.0
-           $ layout_x_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 22.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 22.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 22.0
            $ layout_x_axis . laxis_title .~ xtitle
-           $ layout_y_axis . laxis_title_style . font_size .~ 16.0
+           $ layout_y_axis . laxis_title_style . font_size .~ 22.0
            $ layout_y_axis . laxis_title .~ ytitle
-           $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ layout_legend .~ Just (legend_label_style . font_size .~ 22.0 $ def)
            $ layout_x_axis . laxis_generate .~ (scaledAxis params (1.0, 365.0))
            $ def
 
@@ -414,6 +441,18 @@ plotClusters cls =
     flowers = concatMap (mkLPointsC flowerDsC) cls
     sdrops = concatMap (mkLPointsC ssetDsC) cls
 
+plotClusters' cls =
+  mkYrPoints
+    ["germ", "flower", "seed"]
+    [white, white, white]
+    ""
+    ""
+    [germs, flowers, sdrops]
+  where
+    germs = concatMap (mkLPointsC germDsC) cls
+    flowers = concatMap (mkLPointsC flowerDsC) cls
+    sdrops = concatMap (mkLPointsC ssetDsC) cls
+
 plotClusterLs cs = mkLine' cls "" "" lns
   where
     lns = concatMap mkLLinePs cs
@@ -439,7 +478,7 @@ update :: Int -> M.Map Int Int -> M.Map Int Int
 update k = M.adjustWithKey (\k v -> v + 1) k
 
 freqs :: [Int] -> M.Map Int Int
-freqs ns = foldl' (flip update) (M.fromList [(1, 0), (2, 0), (3, 0), (4, 0)]) ns
+freqs ns = foldl' (flip update) (M.fromList [(1, 0), (2, 0), (3, 0), (4,0)]) ns
 
 freqAnalysis cs events = map ratioN succsFreqs
   where

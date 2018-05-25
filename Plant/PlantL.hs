@@ -60,7 +60,7 @@ devep =
 transp =
     [rule|
         EPlant{attr=atr, dg=d, wct=w} -->
-        FPlant{attr=atr, dg=0.0, nf=0, fthrt=0, rosM =0, rosA=0}
+        FPlant{attr=atr, dg=0.0, nf=0, fthrt=0, rosM =0, rosA=0, sdeg=0}
         @logf' d/tp
     |]
     

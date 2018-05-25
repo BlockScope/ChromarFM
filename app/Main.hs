@@ -32,7 +32,12 @@ mkSt' = ms
     ra = 2*cotArea*cos (10/180*pi)
     si = initS * initC * ra
     atr = Attrs{ind=1, psi=0.0, fi=0.598}
-      
+
+mkSt'' :: Multiset Agent
+mkSt'' = ms [Plant{attr=atr, thrt=1.0, dg=0.0, wct=0.0}]
+  where
+    atr = Attrs{ind=1, psi=0.0, fi=0.598}
+
 mdLite =
     Model
     { rules =
@@ -47,15 +52,16 @@ mdLite =
         , leafTransl
         , rootTransl
         , devep
-        , leafD'  
+        , devp
+        , eme  
         ]
-    , initState = mkSt'
+    , initState = mkSt''
     }
 
 mainLite :: FilePath -> Time -> IO ()
 mainLite outDir dur=
     goPlot
-        5
+        10
         [ carbon
         , leafMass
         , starch
@@ -75,10 +81,14 @@ mainLite outDir dur=
         mdLite
         (\s -> getT s < dur)
 
-main = do
+main' = do
   args <- getArgs
   let outDir = args !! 0 :: FilePath
       tstart = read (args !! 1) :: Time
       tend = read (args !! 2) :: Time
   print "running"
   mainLite outDir (tend - tstart)
+
+main = do
+  print "running"
+  mainLite "out/fmLiteExps12h" 800

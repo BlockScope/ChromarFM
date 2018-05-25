@@ -17,7 +17,7 @@ def defReq():
     'dataset'    : "interim",
     'class'      : "ei",
     'type'       : "an",
-    "stream"     : "OPER",
+    "stream"     : "OPER"
     "expver"     : "0001",
     "repres"     : "sh",
     "levtype"    : "sfc",

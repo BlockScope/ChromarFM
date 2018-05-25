@@ -240,11 +240,11 @@ mkPoints' cs xtitle ytitle valss = layout
               $ def )   
     layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs valss]
            $ layout_title  .~ ""
-           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 18.0
-           $ layout_x_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_x_axis . laxis_style . axis_label_style . font_size .~ 15.0
+           $ layout_y_axis . laxis_style . axis_label_style . font_size .~ 15.0
+           $ layout_x_axis . laxis_title_style . font_size .~ 17.0
            $ layout_x_axis . laxis_title .~ xtitle
-           $ layout_y_axis . laxis_title_style . font_size .~ 20.0
+           $ layout_y_axis . laxis_title_style . font_size .~ 17.0
            $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ def
@@ -255,7 +255,7 @@ mkLine' cs ytitle xtitle tvalss = layout
     plot c tvals =
         toPlot
             (  plot_lines_values .~ [tvals]
-             $ plot_lines_style . line_color .~ (c `withOpacity` 0.9)
+             $ plot_lines_style . line_color .~ (c `withOpacity` 0.7)
              $ plot_lines_style . line_width .~ 2.0
              $ def)
     layout = layout_plots .~ [plot c vals | (c, vals) <- zip cs tvalss]
@@ -277,7 +277,7 @@ plotHistsGrid fout x hists = renderableToFile foptions fout $ fillBackground def
 
     chart = gridToRenderable fullGrid
 
-    foptions = fo_size .~ (900,500) $ def
+    foptions = fo_format .~ PDF $ fo_size .~ (900, 500) $ def
 
 {- plots histograms arranged on a grid -}
 plotHistsGridR x hists = fillBackground def $ chart
@@ -593,58 +593,6 @@ ratioN xs = map (/ (sum fxs)) fxs
 getTotalMass :: Int -> [(Double, Double)] -> Double
 getTotalMass n pms = sum [p*(fromIntegral n)*m | (p, m) <- pms]
 
---- biomass game with more than 1 seed
-data Cluster = Cluster
-    { cid :: Int
-    , bmass :: Double
-    , len :: Double
-    , cgermD :: Double
-    , cvegLen :: Double
-    } deriving (Show)
-
-type Mass = Double
-
-assign :: [Cluster] -> Lifecycle -> Cluster
-assign cs lf =
-    head .> fst $
-    sortWith
-        snd
-        [ (c, dist lf c)
-        | c <- cs ]
-  where
-    dist lf c = euclDist (extract c) (extractL lf)
-
-breadthW :: Mass -> Double
-breadthW m
-    | m < 0.2 = 0.0
-    | otherwise = 1.0
-    
-logistic :: (Double, Double) -> Double -> Double
-logistic (k, x0) x = 1.0 / (1 + exp (-k*(x - x0)))
-
-getMassLineage :: [Cluster] -> (Mass -> Double) -> [Lifecycle] -> Mass
-getMassLineage cs f lfs = sum (zipWith (*) mss bss)
-  where
-    mss = map (assign cs .> bmass) lfs
-    bss = scanl (*) 1.0 (map f mss)
-
-getLineage :: [Cluster] -> [Lifecycle] -> [Lifecycle]
-getLineage cs lfs = map fst (takeWhile (\(lf, b) -> b > 0.0) (zip lfs bss))
-  where
-    mss = map (assign cs .> bmass .> breadthW) lfs
-    bss = scanl (*) 1.0 mss
-    
-lineages ess = M.map (sortWith timeE .> dropYrsE 15 .> getLfs) ess
-
-euclDist :: [Double] -> [Double] -> Double
-euclDist xs ys = sum $ zipWith (\x y -> (x - y) ** 2) xs ys
-
-extract :: Cluster -> [Double]
-extract c = [len c, cgermD c, cvegLen c]
-
-extractL :: Lifecycle -> [Double]
-extractL lf = [getLen .> (/ 24) $ lf, germD lf, vegSLenD lf]
-
 vsumm :: Lifecycle -> IO ()
 vsumm lf = do
    print "Lf length"
@@ -670,17 +618,3 @@ mkHeatMap xtitle ytitle vals = layout
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
            $ layout_y_axis . laxis_title .~ ytitle
            $ def
-
-
--- plotHistsGridR
---     1
---     [ mkPoints''
---           [blue]
---           "x"
---           "y"
---           "title"
---           [ [ ( fromIntegral (tep e)
---               , phRate (tempp e) (par e) (photop e) (moistp e))
---             | e <- wd ]
---           ]
---     ]

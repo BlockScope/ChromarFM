@@ -14,10 +14,22 @@ import           GHC.Generics
 import           Params
 import           Photo
 
+vegLen = 262*24
+
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
-logf' :: Double -> Double
-logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
+-- logf' :: Double -> Double
+-- logf' t = 1.0 / (1.0 + exp (-100.0 * (t - 2604.0)))
+
+logf' t =
+    if t > 2604.0
+        then 1.0
+        else 0.0
+
+logf t =
+  if t > vegLen
+     then 1.0
+     else 0.0     
 
 logs' :: Double -> Double
 logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))

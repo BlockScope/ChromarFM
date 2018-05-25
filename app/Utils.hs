@@ -28,6 +28,19 @@ goPlot nreps obss tss outDir md fb = do
     mapM_ (writeAvgObs tss obsNms stobsss outDir) [0 .. (nObs - 1)]
     print $ avgLastTime stobsss
 
+goPlot' nreps obss outDir md fb = do
+  rgen <- R.getStdGen
+  let obssF = map gen obss
+      obsNms = map name obss
+      nObs = length obss
+      trajs = runTT rgen nreps fb md
+      tobsss = map (flip applyObs obssF) trajs
+      maxT = maxLastTime tobsss
+      tss = [1 .. maxT]
+      stobsss = map (tsample tss) tobsss
+  mapM_ (writeAvgObs tss obsNms stobsss outDir) [0 .. (nObs - 1)]
+  print $ avgLastTime stobsss
+
 writeAvgObs tss nms tobsss outDir i = writeFile fout (unlines stpoints)
   where
     bOutDir = outDir ++ "/" ++ "text"
@@ -111,3 +124,6 @@ tsample ts@(ts1:tss) tv@((t1, v1):(t2, v2):tvs)
 
 avgLastTime :: [[(Time, a)]] -> Time
 avgLastTime tobss = avg $ map (fst . last) tobss
+
+maxLastTime :: [[(Time, a)]] -> Time
+maxLastTime tobss = maximum $ map (fst . last) tobss

@@ -18,13 +18,11 @@ tbg = 3.0
 tbd = 3.0
 kt = 0.12
 to = 22
-
 fu = 0
 
+--dataFile = "data/soil/oulu_20102011.csv"
 dataFile = "data/soil/oulu_20102011.csv"
---dataFile = "data/weatherValencia60yrs.csv"β
-
-shiftT = 238*24
+shiftT = 236*24
 
 shift :: Time -> Fluent a -> Fluent a
 shift t0 f = mkFluent (\t -> at f (t + t0))

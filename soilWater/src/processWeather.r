@@ -1,5 +1,4 @@
 library(ncdf4)
-library(maptools)
 
 d2m = "d2m"
 ssr = "ssr"
@@ -141,12 +140,3 @@ mkSWIndex1Soil <- function(year, month, loc, spwp, sfc) {
     return(sapply(sw1,
                   indexifySW(spwp, sfc)))
 }
-
-
-
-
-
-
-
-
-

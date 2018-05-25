@@ -22,28 +22,24 @@ indToString <- function(ind) {
     return(s)
 }
 
-integrateData <- function(ind, nm) {
+integrateData <- function(nm) {
     hourInd <- 1
     dlenInd <- 3
     dnInd <- 4
+    tempInd <- 5
+    radInd <- 7
 
-    indStr <- indToString(ind)
-    
-    radFile <- paste("../../data/swrad_2010-2011_", indStr, ".csv", sep="")
-    tempFile <- paste("../../data/airt_2010-2011_", indStr , ".csv", sep="")
     envFile <- paste("../../data/rad/weather", nm,  "2yrsRad.csv", sep="")
 
-    rads <- read.table(radFile, header=T)
-    temps <-  read.table(tempFile, header=T)
     envs <- read.table(envFile, sep=",", header=F)
 
-    swInds <- mkSWIndex("20102011", "", val)
+    swInds <- mkSWIndex("20102011", "", oul)
 
     env <- data.frame(hour = envs[, hourInd],
                       dLen = envs[, dlenInd],
                       dn = envs[, dnInd],
-                      temp = temps$x,
+                      temp = envs[,tempInd],
                       moist = hourify(swInds),
-                      rad = rads$x)
+                      rad = envs[, radInd])
     return(env)
 }
