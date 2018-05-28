@@ -138,22 +138,27 @@ getMassLineage cs f lfs = sum (zipWith (*) mss bss)
     mss = map fmass (assignCs cs lfs)
     bss = scanl (*) 1.0 (map f mss)
 
-getLineage :: [GCluster] -> [Lifecycle] -> [Lifecycle]
-getLineage cs lfs = map fst (takeWhile (\(lf, b) -> b > 0.0) (zip lfs bss))
+bf :: Mass -> Mass -> Double
+bf m0 m
+  | m < m0 = 0
+  | otherwise = 1
+
+getLineagePop :: (Mass -> Double) -> [GCluster] -> [Lifecycle] -> Double
+getLineagePop bf cs lfs = sum bss
   where
-    mss = map (fmass .> breadthW) (assignCs cs lfs)
+    mss = map (fmass .> bf) (assignCs cs lfs)
+    bss = scanl (*) 1.0 mss
+    
+pruneLineage :: (Mass -> Double) -> [GCluster] -> [Lifecycle] -> [Lifecycle]
+pruneLineage bf cs lfs = map fst $ takeWhile (\(l, b) -> b > 0) (zip lfs bss)
+  where
+    mss = map (fmass .> bf) (assignCs cs lfs)
     bss = scanl (*) 1.0 mss
 
-getLineagePop :: [GCluster] -> [Lifecycle] -> Double
-getLineagePop cs lfs = sum bss
+getLineageR :: (Mass -> Double) -> [GCluster] -> [Lifecycle] -> Double
+getLineageR bf cs lfs = avg mss
   where
-    mss = map (fmass .> breadthW) (assignCs cs lfs)
-    bss = scanl (*) 1.0 mss
-
-getLineageR :: [GCluster] -> [Lifecycle] -> Double
-getLineageR cs lfs = avg mss
-  where
-    mss = map (fmass .> breadthW) (assignCs cs lfs)
+    mss = map (fmass .> bf) (assignCs cs lfs)
     
 lineages ess = M.map (sortWith timeE .> dropYrsE 15 .> getLfs) ess
 
@@ -181,7 +186,7 @@ addGrowth gvals c = c {fmass = fm, growth = gvals}
 
 toTupleG :: GVals -> [(Double, Double, Double, Double)]
 toTupleG gvals =
-  [ (t rm * 24, val rm, val im, val fm)
+  [ (t rm, val rm, val im, val fm)
   | (rm, im, fm) <- zip3 (rosM gvals) (inflM gvals) (fruitM gvals)
   ]
 
@@ -190,8 +195,8 @@ fromTupleG tvals = GVals { rosM = [TVal{t=t, val=rm} | (t, rm, _, _) <- tvals],
                            inflM = [TVal{t=t, val=im} | (t, _, im, _) <- tvals],
                            fruitM = [TVal{t=t, val=fm} | (t, _, _, fm) <- tvals]}
 
-writeCluster :: FilePath -> GCluster -> IO ()
-writeCluster fp c = BL.writeFile fp (encode $ toTupleG (growth c))
+writeCluster :: FilePath -> GVals -> IO ()
+writeCluster fp g = BL.writeFile fp (encode $ toTupleG g)
 
 readCluster :: FilePath -> IO GVals
 readCluster fp = do
@@ -219,6 +224,7 @@ mkLineLeg ds cs ytitle xtitle tvalss = layout
            $ layout_y_axis . laxis_title_style . font_size .~ 16.0
            $ layout_y_axis . laxis_title .~ ytitle
            $ layout_legend .~ Just (legend_label_style . font_size .~ 16.0 $ def)
+           $ layout_y_axis . laxis_generate .~ (scaledAxis def (-15.0, 0.0))
            $ def
            
 mkLine'' :: [String] -> [Colour Double] -> String -> String -> [[(Double, Double)]] -> Layout Double Double
@@ -279,15 +285,16 @@ plotHistsGrid' fout x xd yd hists = renderableToFile foptions fout $ fillBackgro
 
 mkGVals :: FilePath -> IO GVals
 mkGVals fp = do
-  mRosLeaves <- readSimOut "../out/greenlabExps/text/mRosLeaves.txt"
-  mMALeaves <- readSimOut "../out/greenlabExps/text/mMALeaves.txt"
-  mLALeaves <- readSimOut "../out/greenlabExps/text/mLALeaves.txt"
-  mMAFruits <- readSimOut "../out/greenlabExps/text/mMAFruits.txt"
-  mLAFruits <- readSimOut "../out/greenlabExps/text/mLAFruits.txt"
+  mRosLeaves <- readSimOut (fp ++ "mRosLeaves.txt")
+  mMALeaves <- readSimOut (fp ++ "mMALeaves.txt")
+  mLALeaves <- readSimOut (fp ++ "mLALeaves.txt")
+  mMAFruits <- readSimOut (fp ++ "mMAFruits.txt")
+  mLAFruits <- readSimOut (fp ++ "mLAFruits.txt")
   return $
     GVals
     { rosM = toDays mRosLeaves
-    , inflM = toDays (add mMALeaves mLALeaves)
+    , inflM = toDays (
+      add mMALeaves mLALeaves)
     , fruitM = toDays (add mMAFruits mLAFruits)
     }
 
@@ -487,3 +494,12 @@ freqAnalysis cs events = map ratioN succsFreqs
     cids = map cid cs
     succsFreqs =
       map (M.toList .> (map snd)) [freqs (succsOf cid liveTypes) | cid <- cids]
+
+zeroL = -15
+
+logTVal TVal{t=t, val=v} = if (v == 0 || (log v < zeroL)) then TVal{t=t, val=zeroL} 
+                            else TVal{t=t, val=log v}
+                            
+logGVal GVals{rosM=rm, inflM=im, fruitM=fm} = GVals{rosM=map logTVal rm,
+                                                    inflM=map logTVal im,
+                                                    fruitM=map logTVal fm}
