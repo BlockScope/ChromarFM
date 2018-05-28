@@ -14,7 +14,9 @@ import           GHC.Generics
 import           Params
 import           Photo
 
-vegLen = 262*24
+vegLen = 263*24
+
+dS = 8448
 
 log' t = 1.0 / (1.0 + exp (-100.0 * (t - 1000.0)))
 
@@ -32,11 +34,11 @@ logf t =
      else 0.0     
 
 logs' :: Double -> Double
-logs' t = 1.0 / (1.0 + exp (-100.0 * (t - 8448.0)))
+logs' t = 1.0 / (1.0 + exp (-100.0 * (t - dS)))
 
 ---thrmFinal = 4150
 thrmFinal = 2604
-thrmFinalR = 8448
+thrmFinalR = dS
 
 dF = thrmFinal + thrmFinalR
 
@@ -1070,4 +1072,4 @@ hasGerminated :: Multiset Agent -> Bool
 hasGerminated mix=  (sumM dg . select isSeed) mix < 1000
 
 hasSSeeds :: Multiset Agent -> Bool
-hasSSeeds mix = (sumM dg . select isFPlant) mix < 8448
+hasSSeeds mix = (sumM dg . select isFPlant) mix < dS
