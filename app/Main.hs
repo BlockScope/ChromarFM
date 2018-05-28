@@ -79,7 +79,7 @@ mainLite outDir dur=
         [0 .. dur]
         outDir
         mdLite
-        (\s -> getT s < dur)
+        (\s -> hasFlowered (getM s))
 
 main' = do
   args <- getArgs

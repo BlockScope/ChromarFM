@@ -30,7 +30,7 @@ mkSt' = ms
     fR = rdem 0.0 thrmFinal
     ra = 2*cotArea*cos (10/180*pi)
     si = initS * initC * ra
-    atr = Attrs{ind=1, psi=0.0, fi=0.598}
+    atr = Attrs{ind=1, psi=0.0, fi=0.737}
 
 mkSt'' :: Multiset Agent
 mkSt'' = ms [Plant{attr=atr, thrt=1.0, dg=0.0, wct=0.0}]
@@ -71,11 +71,11 @@ mdLiteGreenlab =
           ,initState= mkSt' }
 
 main' = do
-    let dur = (262+47)*24
+    let dur = (263+47)*24
         outDir = "out/greenlabExps"
     print "running"    
     goPlot'
-        5
+        2
         [ carbon
         , leafMass
         , starch
